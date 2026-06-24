@@ -1,0 +1,14 @@
+[build]
+  base = "client"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
+  VITE_DEMO_MODE = "true"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

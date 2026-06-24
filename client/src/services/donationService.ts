@@ -1,5 +1,12 @@
 import axios from 'axios';
 import type { Donation, PaymentIntent } from '../interfaces/index';
+import { isDemoMode } from '../lib/config';
+import {
+  demoDonate,
+  demoGetAllDonations,
+  demoGetDonationStats,
+  demoGetUserDonations,
+} from '../lib/demoStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -23,6 +30,10 @@ apiClient.interceptors.request.use((config) => {
 export const donationService = {
   // Get user's donation history
   getUserDonations: async (): Promise<Donation[]> => {
+    if (isDemoMode()) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return demoGetUserDonations(user._id || '');
+    }
     try {
       const response = await apiClient.get('/donations/my-donations');
       return response.data.donations || [];
@@ -34,6 +45,7 @@ export const donationService = {
 
   // Get all donations (admin only)
   getAllDonations: async (): Promise<Donation[]> => {
+    if (isDemoMode()) return demoGetAllDonations();
     try {
       const response = await apiClient.get('/admin/donations');
       return response.data.donations || [];
@@ -60,6 +72,15 @@ export const donationService = {
     amount: number,
     currency: string = 'usd'
   ): Promise<PaymentIntent> => {
+    if (isDemoMode()) {
+      return {
+        id: `pi_demo_${Date.now()}`,
+        amount: Math.round(amount * 100),
+        currency,
+        status: 'succeeded',
+        clientSecret: 'demo',
+      };
+    }
     try {
       const response = await apiClient.post('/donations/create-payment-intent', {
         campaignId,
@@ -82,6 +103,17 @@ export const donationService = {
     paymentMethod: string;
     paymentIntentId: string;
   }): Promise<Donation> => {
+    if (isDemoMode()) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return demoDonate({
+        campaignId: donationData.campaignId,
+        amount: donationData.amount,
+        message: donationData.message,
+        isAnonymous: donationData.isAnonymous,
+        paymentMethod: donationData.paymentMethod,
+        donor: { id: user._id, name: user.name, email: user.email },
+      });
+    }
     try {
       const response = await apiClient.post('/donations/process', donationData);
       return response.data.donation;
@@ -144,6 +176,7 @@ export const donationService = {
       donationCount: number;
     }>;
   }> => {
+    if (isDemoMode()) return demoGetDonationStats();
     try {
       const response = await apiClient.get('/donations/stats');
       return response.data.stats;

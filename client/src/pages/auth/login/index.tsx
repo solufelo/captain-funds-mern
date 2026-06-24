@@ -1,9 +1,10 @@
 import { Button, Form, Input, message } from "antd"
 import WelcomeContent from "../common/welcome-content"
 import { Link, useNavigate } from "react-router-dom"
-import axios from "axios"
 import { useState } from "react"
 import userStore from "../../../store/users-store"
+import { loginUser } from "../../../services/authService"
+import { DEMO_ACCOUNTS } from "../../../lib/config"
 
 interface LoginForm {
   email: string
@@ -18,20 +19,18 @@ function LoginPage() {
   const onSubmit = async (values: LoginForm) => {
     try {
       setLoading(true)
-      const response = await axios.post("/api/users/login", values)
-      message.success(response.data.message || "Login successful")
-      if (response.data.token && response.data.user) {
-        localStorage.setItem("token", response.data.token)
-        localStorage.setItem("user", JSON.stringify(response.data.user))
-        // Also set cookies for consistency
-        document.cookie = `token=${response.data.token}; path=/; max-age=3600`
-        document.cookie = `user=${JSON.stringify(response.data.user)}; path=/; max-age=3600`
-        // Update store
-        setCurrentUser(response.data.user)
+      const response = await loginUser(values.email, values.password)
+      message.success(response.message || "Login successful")
+      if (response.token && response.user) {
+        localStorage.setItem("token", response.token)
+        localStorage.setItem("user", JSON.stringify(response.user))
+        document.cookie = `token=${response.token}; path=/; max-age=3600`
+        document.cookie = `user=${JSON.stringify(response.user)}; path=/; max-age=3600`
+        setCurrentUser(response.user)
       }
       navigate("/")
     } catch (err: any) {
-      message.error(err?.response?.data?.message || "Login failed")
+      message.error(err?.response?.data?.message || err?.message || "Login failed")
     } finally {
       setLoading(false)
     }
@@ -76,6 +75,10 @@ function LoginPage() {
           <span className="text-sm text-gray-500">
             Don't have an account? <Link to="/register">Register</Link>
           </span>
+          <p className="text-xs text-gray-400">
+            Demo: {DEMO_ACCOUNTS.user.email} / {DEMO_ACCOUNTS.user.password} · Admin:{" "}
+            {DEMO_ACCOUNTS.admin.email} / {DEMO_ACCOUNTS.admin.password}
+          </p>
         </Form>
       </div>
     </div>

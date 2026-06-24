@@ -1,8 +1,9 @@
 import { Typography, Card, Button, Progress } from "antd";
 import { HeartOutlined, FundOutlined } from "@ant-design/icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Campaign } from "../../interfaces/index";
 import DonationModal from "../../components/DonationModal";
+import campaignService from "../../services/campaignService";
 
 const { Title, Text } = Typography;
 
@@ -11,6 +12,15 @@ function CampaignsPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
     null
   );
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+
+  useEffect(() => {
+    campaignService.getAllCampaigns().then(setCampaigns).catch(() => setCampaigns([]));
+  }, []);
+
+  const refreshCampaigns = () => {
+    campaignService.getAllCampaigns().then(setCampaigns).catch(() => {});
+  };
 
   const handleDonateClick = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
@@ -18,63 +28,8 @@ function CampaignsPage() {
   };
 
   const handleDonationSuccess = () => {
-    // Refresh campaigns data or update the specific campaign
-    console.log("Donation successful, refreshing data...");
+    refreshCampaigns();
   };
-
-  // Sample campaigns matching backend model - replace with real API data
-  const sampleCampaigns: Campaign[] = [
-    {
-      _id: "1",
-      title: "Help for Education",
-      description:
-        "Supporting underprivileged children with educational resources and school supplies for a better future.",
-      organizer: "Education Foundation",
-      image: "/api/placeholder/400/300",
-      EventTargetAmount: 10000,
-      EventCurrentAmount: 2500,
-      status: "active",
-      EventCategory: "Education",
-      location: "New York, NY",
-      endDate: new Date("2024-12-01"),
-      isActive: true,
-      isApproved: true,
-      isFeatured: true,
-    },
-    {
-      _id: "2",
-      title: "Medical Emergency Fund",
-      description:
-        "Emergency medical assistance for community members in need of urgent care and treatment.",
-      organizer: "Community Health Center",
-      image: "/api/placeholder/400/300",
-      EventTargetAmount: 5000,
-      EventCurrentAmount: 1200,
-      status: "active",
-      EventCategory: "Healthcare",
-      location: "Los Angeles, CA",
-      endDate: new Date("2024-11-15"),
-      isActive: true,
-      isApproved: true,
-    },
-    {
-      _id: "3",
-      title: "Community Development",
-      description:
-        "Infrastructure development and improvement projects for our local community and neighborhoods.",
-      organizer: "City Development Board",
-      image: "/api/placeholder/400/300",
-      EventTargetAmount: 15000,
-      EventCurrentAmount: 8750,
-      status: "active",
-      EventCategory: "Community",
-      location: "Chicago, IL",
-      endDate: new Date("2024-10-30"),
-      isActive: true,
-      isApproved: true,
-      isFeatured: true,
-    },
-  ];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -91,7 +46,7 @@ function CampaignsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sampleCampaigns.map((campaign, index) => {
+        {campaigns.map((campaign, index) => {
           const progressPercent = Math.round(
             (campaign.EventCurrentAmount / campaign.EventTargetAmount) * 100
           );

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { App } from 'antd'
 import Cookies from 'js-cookie'
 import Header from './header'
+import DemoBanner from '../components/DemoBanner'
 import userStore from '../store/users-store'
 
 function PrivateLayout({ children }: { children: React.ReactNode }) {
@@ -16,11 +17,11 @@ function PrivateLayout({ children }: { children: React.ReactNode }) {
       const user = JSON.parse(Cookies.get('user') || localStorage.getItem('user') || '{}')
       if (user && Object.keys(user).length > 0) {
         setCurrentUser(user)
+        return
       }
-    } else {
-      navigate('/login')
-      message.error('You are not logged in')
     }
+    navigate('/login')
+    message.error('You are not logged in')
   }, [navigate, message, setCurrentUser])
   if (!currentUser) {
     return (
@@ -31,6 +32,7 @@ function PrivateLayout({ children }: { children: React.ReactNode }) {
   }
     return (
     <div>
+        <DemoBanner />
         <Header />
         {children}
     </div>

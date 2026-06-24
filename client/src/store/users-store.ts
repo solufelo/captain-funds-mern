@@ -14,10 +14,19 @@ interface UserStore {
   clearUser: () => void
 }
 
+function loadStoredUser(): User | null {
+  try {
+    const raw = localStorage.getItem("user")
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 const userStore = create<UserStore>((set) => ({
-  currentUser: null,
+  currentUser: loadStoredUser(),
   setCurrentUser: (user) => set({ currentUser: user }),
-  clearUser: () => set({ currentUser: null })
+  clearUser: () => set({ currentUser: null }),
 }))
 
 export default userStore

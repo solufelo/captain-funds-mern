@@ -1,5 +1,7 @@
 import axios from 'axios';
 import type { Campaign } from '../interfaces/index';
+import { isDemoMode } from '../lib/config';
+import { demoDonate, demoGetCampaignById, demoGetCampaigns } from '../lib/demoStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -23,6 +25,7 @@ apiClient.interceptors.request.use((config) => {
 export const campaignService = {
   // Get all active campaigns for public view
   getAllCampaigns: async (): Promise<Campaign[]> => {
+    if (isDemoMode()) return demoGetCampaigns();
     try {
       const response = await apiClient.get('/campaigns');
       return response.data.campaigns || [];
@@ -45,6 +48,11 @@ export const campaignService = {
 
   // Get single campaign by ID
   getCampaignById: async (id: string): Promise<Campaign> => {
+    if (isDemoMode()) {
+      const campaign = demoGetCampaignById(id);
+      if (!campaign) throw new Error('Campaign not found');
+      return campaign;
+    }
     try {
       const response = await apiClient.get(`/campaigns/${id}`);
       return response.data.campaign;
@@ -88,6 +96,16 @@ export const campaignService = {
 
   // Donate to campaign
   donateToCampaign: async (campaignId: string, amount: number): Promise<any> => {
+    if (isDemoMode()) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return demoDonate({
+        campaignId,
+        amount,
+        isAnonymous: false,
+        paymentMethod: 'credit_card',
+        donor: { id: user._id, name: user.name, email: user.email },
+      });
+    }
     try {
       const response = await apiClient.post(`/campaigns/${campaignId}/donate`, { amount });
       return response.data;

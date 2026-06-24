@@ -2,8 +2,8 @@ import { Button, Form, message } from "antd"
 import WelcomeContent from "../common/welcome-content.tsx"
 import Input from "antd/es/input/Input"
 import { Link, useNavigate } from "react-router-dom"
-import axios from "axios"
 import { useState } from "react"
+import { registerUser } from "../../../services/authService"
 
 interface RegisterForm {
   name: string
@@ -16,14 +16,14 @@ function RegisterPage() {
   const onSubmit = async (values: RegisterForm) => {
     try {
       setLoading(true)
-      const response = await axios.post("/api/users/register", values);
-      console.log(response.data)
-      message.success(response.data.message)
-      if (response.data.message === "User created successfully") {
+      const response = await registerUser(values.name, values.email, values.password);
+      console.log(response)
+      message.success(response.message)
+      if (response.message === "User created successfully") {
         navigate("/login");
       }         
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Registration failed")
+      message.error(error?.response?.data?.message || error?.message || "Registration failed")
     } finally {
       setLoading(false)
     } 

@@ -2,6 +2,23 @@
 
 A comprehensive fundraising platform built with MongoDB, Express.js, React, and Node.js.
 
+## Netlify live demo
+
+The React client deploys to Netlify as a **demo-mode SPA** (no Mongo/Express on Netlify).
+
+| Setting | Value |
+|---------|--------|
+| Base directory | `client` |
+| Build command | `npm run build` |
+| Publish directory | `client/dist` |
+| Framework | None / Vite (not Next.js) |
+
+Set `VITE_DEMO_MODE=true` (default in `netlify.toml`). Clear build cache after first deploy.
+
+**Demo logins:** `demo@captainfunds.app` / `demo123` · `admin@captainfunds.app` / `admin123`
+
+Full MERN stack still runs locally with `server/` + MongoDB when `VITE_DEMO_MODE=false`.
+
 ## 🚀 Project Overview
 
 CAPTAIN-FUNDS is a full-stack fundraising application that allows users to create campaigns, make donations, and track fundraising progress. The platform includes role-based access control, user management, and comprehensive reporting features.
