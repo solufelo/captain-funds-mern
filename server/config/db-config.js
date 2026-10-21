@@ -1,24 +1,34 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
-dotenv.config();
-const MONGODB_URL = process.env.MONGODB_URL;
-const dbConfig = () => {
-  mongoose.connect(MONGODB_URL);
-};  
+import { env } from "./env.js";
 
-try {
-  mongoose.connection.on("connected", () => {
-    console.log("Connected to MongoDB");
-  });
-  mongoose.connection.on("error", (err) => {
-    console.log("MongoDB connection error", err);
-  });
-} catch (error) {
-  console.log("MongoDB connection error", error);
-} finally {
-  mongoose.connection.on("error", (err) => {
-    console.log("MongoDB connection error", err);
-  });
+let memoryServer = null;
+
+/**
+ * Connects to MONGODB_URL when set. Otherwise (dev/test only) starts an
+ * in-memory MongoDB via mongodb-memory-server so the app runs with zero setup.
+ * Returns { uri, inMemory }.
+ */
+export async function connectDb({ memoryPort } = {}) {
+  let uri = env.mongoUrl;
+  let inMemory = false;
+
+  if (!uri) {
+    if (env.isProduction) throw new Error("MONGODB_URL must be set in production.");
+    const { MongoMemoryServer } = await import("mongodb-memory-server");
+    const port = memoryPort ?? (Number(process.env.MONGO_MEMORY_PORT) || undefined);
+    memoryServer = await MongoMemoryServer.create(port ? { instance: { port } } : undefined);
+    uri = memoryServer.getUri("captain_funds");
+    inMemory = true;
+  }
+
+  await mongoose.connect(uri);
+  return { uri, inMemory };
 }
 
-export default dbConfig;
+export async function disconnectDb() {
+  await mongoose.disconnect();
+  if (memoryServer) {
+    await memoryServer.stop();
+    memoryServer = null;
+  }
+}

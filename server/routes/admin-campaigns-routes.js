@@ -1,277 +1,102 @@
-import Campaign from "../models/campaignmodel.js";
 import { Router } from "express";
+import { z } from "zod";
+import Campaign from "../models/campaignmodel.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { validate, validObjectIdParam } from "../middleware/validate.js";
+import { campaignFields, createCampaignSchema } from "./campaigns-routes.js";
+import { broadcastToAll, emitToUser } from "../socket/socketHandler.js";
 
 const router = Router();
 
-// Middleware to check if user is authenticated (you'll need to implement this)
-const authMiddleware = (req, res, next) => {
-  // For now, just pass through - implement proper auth later
-  next();
-};
+// Every route here is admin-only.
+router.use(requireAuth, requireAdmin);
 
-// Middleware to check if user is admin (you'll need to implement this)
-const adminMiddleware = (req, res, next) => {
-  // For now, just pass through - implement proper admin check later
-  next();
-};
-
-// GET /api/admin/campaigns - Get all campaigns for admin management
-router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const campaigns = await Campaign.find({ isDeleted: false })
-      .sort({ createdAt: -1 });
-    
-    res.status(200).json({
-      success: true,
-      campaigns,
-      count: campaigns.length
-    });
-  } catch (error) {
-    console.error("Error fetching admin campaigns:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching campaigns",
-      error: error.message
-    });
-  }
+// GET /api/admin/campaigns — every non-deleted campaign, any status
+router.get("/", async (_req, res) => {
+  const campaigns = await Campaign.find({ isDeleted: false })
+    .populate("createdBy", "name email")
+    .sort({ createdAt: -1 })
+    .lean();
+  res.json({ success: true, count: campaigns.length, campaigns });
 });
 
-// POST /api/admin/campaigns - Create new campaign
-router.post("/", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      organizer,
-      image,
-      EventTargetAmount,
-      EventCategory,
-      location,
-      endDate
-    } = req.body;
-
-    // Validation
-    if (!title || !description || !organizer || !EventTargetAmount || !EventCategory || !location || !endDate) {
-      return res.status(400).json({
-        success: false,
-        message: "All required fields must be provided"
-      });
-    }
-
-    if (EventTargetAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Target amount must be greater than 0"
-      });
-    }
-
-    const campaign = new Campaign({
-      title,
-      description,
-      organizer,
-      image: image || "/api/placeholder/400/300",
-      EventTargetAmount,
-      EventCurrentAmount: 0,
-      EventCategory,
-      location,
-      endDate: new Date(endDate),
-      status: "active",
-      isActive: true,
-      isApproved: true // Auto-approve admin created campaigns
-    });
-
-    const savedCampaign = await campaign.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Campaign created successfully",
-      campaign: savedCampaign
-    });
-  } catch (error) {
-    console.error("Error creating campaign:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error creating campaign",
-      error: error.message
-    });
-  }
+// POST /api/admin/campaigns — admin-created campaigns are published immediately
+router.post("/", validate(createCampaignSchema), async (req, res) => {
+  const campaign = await Campaign.create({
+    ...req.body,
+    createdBy: req.user._id,
+    isApproved: true,
+    isActive: true,
+    status: "active",
+  });
+  broadcastToAll("new-campaign", { campaign: { _id: campaign._id, title: campaign.title } });
+  res.status(201).json({ success: true, message: "Campaign published.", campaign });
 });
 
-// PUT /api/admin/campaigns/:id - Update campaign
-router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const campaign = await Campaign.findById(req.params.id);
-    
-    if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        message: "Campaign not found"
-      });
-    }
+// Raised totals are ledger-derived and never editable here.
+const updateSchema = z
+  .object({
+    ...campaignFields,
+    // Editing an existing campaign may keep an end date that is already close.
+    endDate: z.coerce.date({ invalid_type_error: "End date is not a valid date." }),
+    isActive: z.boolean(),
+    isFeatured: z.boolean(),
+  })
+  .partial();
 
-    const updateData = { ...req.body };
-    
-    // Convert endDate to Date object if provided
-    if (updateData.endDate) {
-      updateData.endDate = new Date(updateData.endDate);
-    }
-    
-    // Update updatedAt timestamp
-    updateData.updatedAt = new Date();
+router.put("/:id", validObjectIdParam(), validate(updateSchema), async (req, res) => {
+  const campaign = await Campaign.findOneAndUpdate({ _id: req.params.id, isDeleted: false }, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+  res.json({ success: true, message: "Campaign updated.", campaign });
+});
 
-    const updatedCampaign = await Campaign.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
+router.delete("/:id", validObjectIdParam(), async (req, res) => {
+  const campaign = await Campaign.findOneAndUpdate(
+    { _id: req.params.id, isDeleted: false },
+    { isDeleted: true, isActive: false },
+    { new: true },
+  );
+  if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+  res.json({ success: true, message: "Campaign deleted." });
+});
+
+router.patch("/:id/approve", validObjectIdParam(), async (req, res) => {
+  const campaign = await Campaign.findOneAndUpdate(
+    { _id: req.params.id, isDeleted: false },
+    { isApproved: true, isRejected: false, isActive: true, $unset: { rejectionReason: 1 } },
+    { new: true },
+  );
+  if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+  if (campaign.createdBy) emitToUser(campaign.createdBy, "campaign-approved", { campaignId: campaign._id, title: campaign.title });
+  broadcastToAll("new-campaign", { campaign: { _id: campaign._id, title: campaign.title } });
+  res.json({ success: true, message: "Campaign approved and live.", campaign });
+});
+
+router.patch(
+  "/:id/reject",
+  validObjectIdParam(),
+  validate(z.object({ reason: z.string().trim().max(300).optional().default("") })),
+  async (req, res) => {
+    const campaign = await Campaign.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false },
+      { isRejected: true, isApproved: false, isActive: false, rejectionReason: req.body.reason },
+      { new: true },
     );
+    if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+    if (campaign.createdBy) emitToUser(campaign.createdBy, "campaign-rejected", { campaignId: campaign._id, title: campaign.title });
+    res.json({ success: true, message: "Campaign rejected.", campaign });
+  },
+);
 
-    res.status(200).json({
-      success: true,
-      message: "Campaign updated successfully",
-      campaign: updatedCampaign
-    });
-  } catch (error) {
-    console.error("Error updating campaign:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating campaign",
-      error: error.message
-    });
-  }
-});
-
-// DELETE /api/admin/campaigns/:id - Soft delete campaign
-router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const campaign = await Campaign.findById(req.params.id);
-    
-    if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        message: "Campaign not found"
-      });
-    }
-
-    // Soft delete
-    campaign.isDeleted = true;
-    campaign.isActive = false;
-    campaign.updatedAt = new Date();
-    await campaign.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Campaign deleted successfully"
-    });
-  } catch (error) {
-    console.error("Error deleting campaign:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error deleting campaign",
-      error: error.message
-    });
-  }
-});
-
-// PATCH /api/admin/campaigns/:id/approve - Approve campaign
-router.patch("/:id/approve", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const campaign = await Campaign.findByIdAndUpdate(
-      req.params.id,
-      { 
-        isApproved: true,
-        isRejected: false,
-        updatedAt: new Date()
-      },
-      { new: true }
-    );
-
-    if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        message: "Campaign not found"
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Campaign approved successfully",
-      campaign
-    });
-  } catch (error) {
-    console.error("Error approving campaign:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error approving campaign",
-      error: error.message
-    });
-  }
-});
-
-// PATCH /api/admin/campaigns/:id/reject - Reject campaign
-router.patch("/:id/reject", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const campaign = await Campaign.findByIdAndUpdate(
-      req.params.id,
-      { 
-        isRejected: true,
-        isApproved: false,
-        isActive: false,
-        updatedAt: new Date()
-      },
-      { new: true }
-    );
-
-    if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        message: "Campaign not found"
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Campaign rejected successfully",
-      campaign
-    });
-  } catch (error) {
-    console.error("Error rejecting campaign:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error rejecting campaign",
-      error: error.message
-    });
-  }
-});
-
-// PATCH /api/admin/campaigns/:id/feature - Toggle featured status
-router.patch("/:id/feature", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const campaign = await Campaign.findById(req.params.id);
-    
-    if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        message: "Campaign not found"
-      });
-    }
-
-    campaign.isFeatured = !campaign.isFeatured;
-    campaign.updatedAt = new Date();
-    await campaign.save();
-
-    res.status(200).json({
-      success: true,
-      message: `Campaign ${campaign.isFeatured ? 'featured' : 'unfeatured'} successfully`,
-      campaign
-    });
-  } catch (error) {
-    console.error("Error toggling featured status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating campaign",
-      error: error.message
-    });
-  }
+router.patch("/:id/feature", validObjectIdParam(), async (req, res) => {
+  const campaign = await Campaign.findOne({ _id: req.params.id, isDeleted: false });
+  if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+  campaign.isFeatured = !campaign.isFeatured;
+  await campaign.save();
+  res.json({ success: true, message: campaign.isFeatured ? "Campaign featured." : "Campaign unfeatured.", campaign });
 });
 
 export default router;

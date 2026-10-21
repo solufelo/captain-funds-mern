@@ -1,541 +1,204 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User from '../models/userModel.js';
-import { emitToAdmins, emitToUser } from '../socket/socketHandler.js';
+import express from "express";
+import bcrypt from "bcryptjs";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
+import User from "../models/user-model.js";
+import Campaign from "../models/campaignmodel.js";
+import Donation from "../models/donation-model.js";
+import { requireAuth, requireAdmin, signToken } from "../middleware/auth.js";
+import { validate, validObjectIdParam, email, password, loginPassword } from "../middleware/validate.js";
+import { emitToAdmins, emitToUser } from "../socket/socketHandler.js";
+import { env } from "../config/env.js";
 
 const router = express.Router();
 
-// Middleware to check if user is authenticated
-const authMiddleware = (req, res, next) => {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ message: 'Access denied. No token provided.' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Invalid token.' });
-  }
-};
-
-// Middleware to check if user is admin
-const adminMiddleware = (req, res, next) => {
-  if (!req.user.isAdmin) {
-    return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
-  }
-  next();
-};
-
-// Register new user
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    // Validation
-    if (!name || !email || !password) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Name, email, and password are required' 
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Password must be at least 6 characters long' 
-      });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'User with this email already exists' 
-      });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      isAdmin: false,
-      isActive: true
-    });
-
-    await user.save();
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        _id: user._id, 
-        email: user.email, 
-        isAdmin: user.isAdmin,
-        isActive: user.isActive 
-      },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '24h' }
-    );
-
-    // Notify admins of new user registration
-    emitToAdmins('new-user-registered', {
-      userId: user._id,
-      name: user.name,
-      email: user.email
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin,
-        isActive: user.isActive
-      }
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error during registration' 
-    });
-  }
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: env.isTest ? 1000 : 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many attempts. Wait a few minutes and try again." },
 });
 
-// Login user
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validation
-    if (!email || !password) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Email and password are required' 
-      });
-    }
-
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid email or password' 
-      });
-    }
-
-    // Check if account is active
-    if (!user.isActive) {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Account has been deactivated. Please contact support.' 
-      });
-    }
-
-    // Check password
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid email or password' 
-      });
-    }
-
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        _id: user._id, 
-        email: user.email, 
-        isAdmin: user.isAdmin,
-        isActive: user.isActive 
-      },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin,
-        isActive: user.isActive
-      }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error during login' 
-    });
-  }
+const publicUser = (u) => ({
+  _id: u._id,
+  name: u.name,
+  email: u.email,
+  isAdmin: u.isAdmin,
+  isActive: u.isActive,
+  phone: u.phone,
+  location: u.location,
+  bio: u.bio,
+  website: u.website,
+  timeStamp: u.timeStamp,
+  lastLogin: u.lastLogin,
 });
 
-// Get all users (admin only)
-router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const users = await User.find({}, '-password').sort({ timeStamp: -1 });
-    
-    res.json({
-      success: true,
-      users,
-      count: users.length
-    });
-  } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error fetching users' 
-    });
-  }
+const profileFields = z
+  .object({
+    name: z.string().trim().min(2, "Name must be at least 2 characters.").max(80).optional(),
+    phone: z.string().trim().max(40).optional(),
+    location: z.string().trim().max(80).optional(),
+    bio: z.string().trim().max(500).optional(),
+    website: z.string().trim().max(200).optional(),
+  })
+  .strip();
+
+// ---- Public auth -----------------------------------------------------------
+
+const registerSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters.").max(80),
+  email,
+  password,
 });
 
-// Get single user by ID
-router.get('/:id', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id, '-password');
-    
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'User not found' 
-      });
-    }
-
-    // Users can only view their own profile, admins can view any
-    if (req.user._id !== req.params.id && !req.user.isAdmin) {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Access denied' 
-      });
-    }
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error fetching user' 
-    });
+router.post("/register", authLimiter, validate(registerSchema), async (req, res) => {
+  const { name, email: mail, password: pw } = req.body;
+  if (await User.exists({ email: mail })) {
+    return res.status(409).json({ success: false, message: "An account with this email already exists." });
   }
+  // Role is never taken from the request: new accounts are always organisers/donors.
+  const user = await User.create({ name, email: mail, password: await bcrypt.hash(pw, 10) });
+  emitToAdmins("new-user-registered", { userId: user._id, name: user.name });
+  res.status(201).json({
+    success: true,
+    message: "Account created.",
+    token: signToken(user),
+    user: publicUser(user),
+  });
 });
 
-// Create new user (admin only)
-router.post('/create', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { name, email, password, phone, location, bio, isAdmin, isActive } = req.body;
+const loginSchema = z.object({ email, password: loginPassword });
 
-    // Validation
-    if (!name || !email || !password) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Name, email, and password are required' 
-      });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'User with this email already exists' 
-      });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      phone,
-      location,
-      bio,
-      isAdmin: isAdmin || false,
-      isActive: isActive !== undefined ? isActive : true
-    });
-
-    await user.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        location: user.location,
-        bio: user.bio,
-        isAdmin: user.isAdmin,
-        isActive: user.isActive,
-        timeStamp: user.timeStamp
-      }
-    });
-  } catch (error) {
-    console.error('Create user error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error creating user' 
-    });
+router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
+  const user = await User.findOne({ email: req.body.email });
+  const ok = user && (await bcrypt.compare(req.body.password, user.password));
+  if (!ok) return res.status(401).json({ success: false, message: "Email or password is incorrect." });
+  if (!user.isActive) {
+    return res.status(403).json({ success: false, message: "This account has been deactivated. Contact support." });
   }
+  user.lastLogin = new Date();
+  await user.save();
+  res.json({ success: true, message: "Signed in.", token: signToken(user), user: publicUser(user) });
 });
 
-// Update user
-router.put('/:id', authMiddleware, async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const updateData = req.body;
+// ---- Signed-in user --------------------------------------------------------
+// Fixed-path routes come before /:id so they are reachable.
 
-    // Users can only update their own profile, admins can update any
-    if (req.user._id !== userId && !req.user.isAdmin) {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Access denied' 
-      });
-    }
-
-    // Don't allow updating password through this endpoint
-    delete updateData.password;
-
-    // Only admins can update admin status and active status
-    if (!req.user.isAdmin) {
-      delete updateData.isAdmin;
-      delete updateData.isActive;
-    }
-
-    const user = await User.findByIdAndUpdate(
-      userId, 
-      updateData, 
-      { new: true, select: '-password' }
-    );
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'User not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'User updated successfully',
-      user
-    });
-  } catch (error) {
-    console.error('Update user error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error updating user' 
-    });
-  }
+router.get("/me", requireAuth, (req, res) => {
+  res.json({ success: true, user: publicUser(req.user) });
 });
 
-// Update user status (admin only)
-router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { isActive } = req.body;
-    const userId = req.params.id;
-
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { isActive },
-      { new: true, select: '-password' }
-    );
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'User not found' 
-      });
-    }
-
-    // Emit real-time update
-    emitToUser(userId, 'account-status-changed', {
-      isActive,
-      message: isActive ? 'Your account has been activated' : 'Your account has been deactivated'
-    });
-
-    emitToAdmins('user-status-update', {
-      userId,
-      name: user.name,
-      isActive
-    });
-
-    res.json({
-      success: true,
-      message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
-      user
-    });
-  } catch (error) {
-    console.error('Update user status error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error updating user status' 
-    });
-  }
+router.put("/profile", requireAuth, validate(profileFields), async (req, res) => {
+  const user = await User.findByIdAndUpdate(req.user._id, req.body, { new: true, runValidators: true });
+  res.json({ success: true, message: "Profile updated.", user: publicUser(user) });
 });
 
-// Delete user (admin only)
-router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const userId = req.params.id;
+const changePasswordSchema = z.object({ currentPassword: loginPassword, newPassword: password });
 
-    // Prevent admin from deleting themselves
-    if (req.user._id === userId) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Cannot delete your own account' 
-      });
-    }
-
-    const user = await User.findByIdAndDelete(userId);
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'User not found' 
-      });
-    }
-
-    // Emit real-time update
-    emitToAdmins('user-deleted', {
-      userId,
-      name: user.name
-    });
-
-    res.json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error deleting user' 
-    });
+router.put("/change-password", requireAuth, authLimiter, validate(changePasswordSchema), async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!(await bcrypt.compare(req.body.currentPassword, user.password))) {
+    return res.status(400).json({ success: false, message: "Current password is incorrect." });
   }
+  user.password = await bcrypt.hash(req.body.newPassword, 10);
+  await user.save();
+  res.json({ success: true, message: "Password changed." });
 });
 
-// Update profile (authenticated users)
-router.put('/profile', authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const updateData = req.body;
+// ---- Admin user management -------------------------------------------------
 
-    // Don't allow updating sensitive fields through profile endpoint
-    delete updateData.password;
-    delete updateData.isAdmin;
-    delete updateData.isActive;
-
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, select: '-password' }
-    );
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'User not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      user
-    });
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error updating profile' 
-    });
-  }
+router.get("/", requireAuth, requireAdmin, async (_req, res) => {
+  const [users, campaignCounts, donationTotals] = await Promise.all([
+    User.find({}, "-password").sort({ timeStamp: -1 }).lean(),
+    Campaign.aggregate([{ $match: { isDeleted: false } }, { $group: { _id: "$createdBy", n: { $sum: 1 } } }]),
+    Donation.aggregate([
+      { $match: { paymentStatus: "completed", donor: { $ne: null } } },
+      { $group: { _id: "$donor", n: { $sum: 1 }, total: { $sum: "$amount" } } },
+    ]),
+  ]);
+  const campaigns = new Map(campaignCounts.map((c) => [String(c._id), c.n]));
+  const donations = new Map(donationTotals.map((d) => [String(d._id), d]));
+  res.json({
+    success: true,
+    count: users.length,
+    users: users.map((u) => ({
+      ...publicUser(u),
+      totalCampaigns: campaigns.get(String(u._id)) || 0,
+      totalDonations: donations.get(String(u._id))?.n || 0,
+      totalDonated: donations.get(String(u._id))?.total || 0,
+    })),
+  });
 });
 
-// Change password
-router.put('/change-password', authMiddleware, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    const userId = req.user._id;
+const adminCreateSchema = registerSchema.extend({
+  isAdmin: z.boolean().optional().default(false),
+  isActive: z.boolean().optional().default(true),
+});
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Current password and new password are required' 
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'New password must be at least 6 characters long' 
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'User not found' 
-      });
-    }
-
-    // Verify current password
-    const validPassword = await bcrypt.compare(currentPassword, user.password);
-    if (!validPassword) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Current password is incorrect' 
-      });
-    }
-
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    // Update password
-    user.password = hashedPassword;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-  } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error changing password' 
-    });
+router.post("/create", requireAuth, requireAdmin, validate(adminCreateSchema), async (req, res) => {
+  if (await User.exists({ email: req.body.email })) {
+    return res.status(409).json({ success: false, message: "An account with this email already exists." });
   }
+  const user = await User.create({ ...req.body, password: await bcrypt.hash(req.body.password, 10) });
+  res.status(201).json({ success: true, message: "User created.", user: publicUser(user) });
+});
+
+router.get("/:id", requireAuth, validObjectIdParam(), async (req, res) => {
+  if (String(req.user._id) !== req.params.id && !req.user.isAdmin) {
+    return res.status(403).json({ success: false, message: "You can only view your own account." });
+  }
+  const user = await User.findById(req.params.id).lean();
+  if (!user) return res.status(404).json({ success: false, message: "User not found." });
+  res.json({ success: true, user: publicUser(user) });
+});
+
+const adminUpdateSchema = profileFields.extend({
+  email: email.optional(),
+  isAdmin: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+});
+
+router.put("/:id", requireAuth, validObjectIdParam(), async (req, res) => {
+  const self = String(req.user._id) === req.params.id;
+  if (!self && !req.user.isAdmin) {
+    return res.status(403).json({ success: false, message: "You can only edit your own account." });
+  }
+  const schema = req.user.isAdmin ? adminUpdateSchema : profileFields;
+  const parsed = schema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
+  if (self && parsed.data.isAdmin === false) {
+    return res.status(400).json({ success: false, message: "You cannot remove your own admin role." });
+  }
+  const user = await User.findByIdAndUpdate(req.params.id, parsed.data, { new: true, runValidators: true });
+  if (!user) return res.status(404).json({ success: false, message: "User not found." });
+  res.json({ success: true, message: "User updated.", user: publicUser(user) });
+});
+
+router.patch(
+  "/:id/status",
+  requireAuth,
+  requireAdmin,
+  validObjectIdParam(),
+  validate(z.object({ isActive: z.boolean() })),
+  async (req, res) => {
+    if (String(req.user._id) === req.params.id) {
+      return res.status(400).json({ success: false, message: "You cannot deactivate your own account." });
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, { isActive: req.body.isActive }, { new: true });
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+    emitToUser(user._id, "account-status-changed", { isActive: user.isActive });
+    res.json({ success: true, message: `User ${user.isActive ? "activated" : "deactivated"}.`, user: publicUser(user) });
+  },
+);
+
+router.delete("/:id", requireAuth, requireAdmin, validObjectIdParam(), async (req, res) => {
+  if (String(req.user._id) === req.params.id) {
+    return res.status(400).json({ success: false, message: "You cannot delete your own account." });
+  }
+  const user = await User.findByIdAndDelete(req.params.id);
+  if (!user) return res.status(404).json({ success: false, message: "User not found." });
+  res.json({ success: true, message: "User deleted." });
 });
 
 export default router;

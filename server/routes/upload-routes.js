@@ -1,231 +1,46 @@
-import express from 'express';
-import { uploadCampaignImage, uploadProfileImage, uploadGeneral, deleteFromCloudinary } from '../config/cloudinary.js';
+import express from "express";
+import { env } from "../config/env.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Middleware to check if user is authenticated
-const authMiddleware = (req, res, next) => {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ message: 'Access denied. No token provided.' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Invalid token.' });
+// Cloudinary is optional. Without keys every upload route answers 503 and the
+// client falls back to an image URL field plus generated cover art.
+router.use(async (req, res, next) => {
+  if (req.path === "/health") return next();
+  if (!env.uploadsConfigured) {
+    return res.status(503).json({ success: false, message: "Image uploads are not configured on this server." });
   }
-};
-
-// Upload campaign image
-router.post('/campaign-image', authMiddleware, (req, res) => {
-  uploadCampaignImage.single('image')(req, res, (error) => {
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message || 'Error uploading campaign image',
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image file provided',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Campaign image uploaded successfully',
-      imageUrl: req.file.path,
-      publicId: req.file.filename,
-      originalName: req.file.originalname,
-    });
-  });
+  next();
 });
 
-// Upload profile image
-router.post('/profile-image', authMiddleware, (req, res) => {
-  uploadProfileImage.single('profileImage')(req, res, (error) => {
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message || 'Error uploading profile image',
-      });
-    }
+async function cloudinary() {
+  return import("../config/cloudinary.js");
+}
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image file provided',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Profile image uploaded successfully',
-      imageUrl: req.file.path,
-      publicId: req.file.filename,
-      originalName: req.file.originalname,
+function singleUpload(getMiddleware, field) {
+  return async (req, res) => {
+    const middleware = (await cloudinary())[getMiddleware];
+    middleware.single(field)(req, res, (error) => {
+      if (error) return res.status(400).json({ success: false, message: error.message || "Upload failed." });
+      if (!req.file) return res.status(400).json({ success: false, message: "No image file provided." });
+      res.json({ success: true, imageUrl: req.file.path, publicId: req.file.filename });
     });
-  });
+  };
+}
+
+router.post("/campaign-image", requireAuth, singleUpload("uploadCampaignImage", "image"));
+router.post("/profile-image", requireAuth, singleUpload("uploadProfileImage", "profileImage"));
+
+// Deleting arbitrary assets by id is an admin-only maintenance action.
+router.delete("/delete/:publicId", requireAuth, requireAdmin, async (req, res) => {
+  const { deleteFromCloudinary } = await cloudinary();
+  const result = await deleteFromCloudinary(decodeURIComponent(req.params.publicId));
+  res.status(result?.result === "ok" ? 200 : 400).json({ success: result?.result === "ok", result });
 });
 
-// Upload general file
-router.post('/general', authMiddleware, (req, res) => {
-  uploadGeneral.single('file')(req, res, (error) => {
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message || 'Error uploading file',
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file provided',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'File uploaded successfully',
-      fileUrl: req.file.path,
-      publicId: req.file.filename,
-      originalName: req.file.originalname,
-      fileType: req.file.mimetype,
-      fileSize: req.file.size,
-    });
-  });
-});
-
-// Upload multiple images
-router.post('/multiple-images', authMiddleware, (req, res) => {
-  uploadGeneral.array('images', 5)(req, res, (error) => {
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message || 'Error uploading images',
-      });
-    }
-
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image files provided',
-      });
-    }
-
-    const uploadedFiles = req.files.map(file => ({
-      imageUrl: file.path,
-      publicId: file.filename,
-      originalName: file.originalname,
-    }));
-
-    res.json({
-      success: true,
-      message: `${req.files.length} images uploaded successfully`,
-      files: uploadedFiles,
-    });
-  });
-});
-
-// Delete file from Cloudinary
-router.delete('/delete/:publicId', authMiddleware, async (req, res) => {
-  try {
-    const { publicId } = req.params;
-    
-    if (!publicId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Public ID is required',
-      });
-    }
-
-    // Decode the publicId (it might be URL encoded)
-    const decodedPublicId = decodeURIComponent(publicId);
-    
-    const result = await deleteFromCloudinary(decodedPublicId);
-    
-    if (result.result === 'ok') {
-      res.json({
-        success: true,
-        message: 'File deleted successfully',
-        result,
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        message: 'Failed to delete file',
-        result,
-      });
-    }
-  } catch (error) {
-    console.error('Delete file error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting file',
-      error: error.message,
-    });
-  }
-});
-
-// Get upload statistics (admin only)
-router.get('/stats', authMiddleware, async (req, res) => {
-  try {
-    // This would typically fetch from database or Cloudinary API
-    const mockStats = {
-      totalUploads: 156,
-      totalSize: '245.7 MB',
-      campaignImages: 89,
-      profileImages: 45,
-      generalFiles: 22,
-      storageUsed: '62%',
-      recentUploads: [
-        {
-          filename: 'campaign-image-1.jpg',
-          uploadedBy: 'John Doe',
-          uploadedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          size: '2.4 MB',
-          type: 'Campaign Image'
-        },
-        {
-          filename: 'profile-pic.png',
-          uploadedBy: 'Jane Smith',
-          uploadedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          size: '1.1 MB',
-          type: 'Profile Image'
-        }
-      ]
-    };
-
-    res.json({
-      success: true,
-      stats: mockStats,
-    });
-  } catch (error) {
-    console.error('Get upload stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching upload statistics',
-    });
-  }
-});
-
-// Health check for upload service
-router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Upload service is healthy',
-    timestamp: new Date().toISOString(),
-    services: {
-      cloudinary: 'connected',
-      multer: 'active',
-    },
-  });
+router.get("/health", (_req, res) => {
+  res.json({ success: true, configured: env.uploadsConfigured });
 });
 
 export default router;

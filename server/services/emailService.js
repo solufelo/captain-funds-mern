@@ -1,30 +1,26 @@
 import nodemailer from 'nodemailer';
 
-// Create transporter based on environment
-const createTransporter = () => {
-  if (process.env.NODE_ENV === 'production') {
-    // Production: Use actual email service (Gmail, SendGrid, etc.)
-    return nodemailer.createTransporter({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // Use app-specific password
-      },
-    });
-  } else {
-    // Development: Use Ethereal Email for testing
-    return nodemailer.createTransporter({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      auth: {
-        user: 'ethereal.user@ethereal.email',
-        pass: 'ethereal.pass',
-      },
-    });
-  }
-};
+// Email is optional. With SMTP settings in .env it sends through nodemailer;
+// without them every send is logged and skipped, so the app never crashes
+// on missing mail credentials.
+export const emailConfigured = Boolean(process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
-const transporter = createTransporter();
+const transporter = emailConfigured
+  ? nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: Number(process.env.EMAIL_PORT) || 587,
+      secure: process.env.EMAIL_SECURE === 'true',
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    })
+  : {
+      async sendMail(options) {
+        console.log(`[email] not configured; skipped "${options.subject}"`);
+        return { messageId: 'not-sent' };
+      },
+      async verify() {
+        return false;
+      },
+    };
 
 // Email templates
 const emailTemplates = {
