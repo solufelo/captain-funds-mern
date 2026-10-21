@@ -71,13 +71,20 @@ router.get("/", validate(listQuery, "query"), async (req, res) => {
 // GET /api/campaigns/stats — platform totals for the landing page
 router.get("/stats", async (_req, res) => {
   const now = new Date();
-  const [ledger, live, organisers] = await Promise.all([
+  const publicIds = await Campaign.distinct("_id", { ...PUBLIC_FILTER });
+  const [ledger, live, organisers, recent] = await Promise.all([
     Donation.aggregate([
       { $match: { paymentStatus: "completed" } },
       { $group: { _id: null, raised: { $sum: "$amount" }, n: { $sum: 1 } } },
     ]),
     Campaign.countDocuments({ ...PUBLIC_FILTER, isActive: true, endDate: { $gt: now } }),
     Campaign.distinct("createdBy", { ...PUBLIC_FILTER }),
+    // Latest gifts to public campaigns only, in the public shape (no emails,
+    // anonymous names hidden), for the landing page's live feed.
+    Donation.find({ campaign: { $in: publicIds }, paymentStatus: "completed" })
+      .sort({ completedAt: -1, createdAt: -1 })
+      .limit(10)
+      .lean(),
   ]);
   res.json({
     success: true,
@@ -86,6 +93,7 @@ router.get("/stats", async (_req, res) => {
       totalDonations: ledger[0]?.n || 0,
       liveCampaigns: live,
       organisers: organisers.filter(Boolean).length,
+      recentGifts: recent.map((d) => ({ ...toPublicDonation(d), campaignId: d.campaign, campaignTitle: d.campaignTitle })),
     },
   });
 });

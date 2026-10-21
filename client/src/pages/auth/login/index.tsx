@@ -44,29 +44,33 @@ export default function LoginPage() {
     >
       {config.demoAccounts && (
         <>
-          <div className="rounded-2xl border border-line bg-card p-4">
-            <div className="kicker text-amber-deep">Demo accounts</div>
-            <p className="mt-1 text-sm text-muted">One click, no typing. Both are fictional and reset with the demo data.</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <Button
-                size="large"
-                loading={loading === "demo-user"}
-                onClick={() => signIn(DEMO_ACCOUNTS.user.email, DEMO_ACCOUNTS.user.password, "demo-user", "/dashboard")}
-                data-testid="demo-organiser"
+          <div className="kicker text-amber-deep">Demo accounts · one click</div>
+          <div className="mt-3 grid gap-3">
+            {[
+              { key: "demo-user", testid: "demo-organiser", who: "Organiser", what: "Your campaigns, gifts and a 30-day chart", acct: DEMO_ACCOUNTS.user, next: "/dashboard", dot: "#1a3636" },
+              { key: "demo-admin", testid: "demo-admin", who: "Admin", what: "Review queue, platform analytics and users", acct: DEMO_ACCOUNTS.admin, next: "/admin", dot: "#f0a43a" },
+            ].map((d) => (
+              <button
+                key={d.key}
+                type="button"
+                disabled={loading !== null}
+                onClick={() => signIn(d.acct.email, d.acct.password, d.key, d.next)}
+                data-testid={d.testid}
+                className="press group flex w-full cursor-pointer items-center gap-4 rounded-[1.2rem] border border-line bg-card px-4 py-3.5 text-left transition-[border-color,box-shadow] duration-300 hover:border-ink/30 hover:shadow-[0_14px_30px_-20px_rgba(16,37,37,0.5)] disabled:cursor-wait"
               >
-                Organiser
-              </Button>
-              <Button
-                size="large"
-                loading={loading === "demo-admin"}
-                onClick={() => signIn(DEMO_ACCOUNTS.admin.email, DEMO_ACCOUNTS.admin.password, "demo-admin", "/admin")}
-                data-testid="demo-admin"
-              >
-                Admin
-              </Button>
-            </div>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-lg font-semibold" style={{ background: d.dot, color: d.dot === "#f0a43a" ? "#102525" : "#f7f4ee" }}>
+                  {loading === d.key ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : d.who.charAt(0)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-ink">{d.who}</span>
+                  <span className="block truncate text-sm text-muted">{d.what}</span>
+                </span>
+                <span className="text-ink/50 transition-transform duration-500 ease-[var(--ease-out-expo)] group-hover:translate-x-1 group-hover:text-ink">→</span>
+              </button>
+            ))}
           </div>
-          <Divider plain className="!text-xs !text-faint">
+          <p className="mt-3 text-xs text-faint">Both accounts are fictional and reset with the demo data.</p>
+          <Divider plain className="!my-7 !text-xs !text-faint">
             or sign in with email
           </Divider>
         </>
@@ -79,11 +83,11 @@ export default function LoginPage() {
           <Input.Password size="large" autoComplete="current-password" />
         </Form.Item>
         {error && (
-          <div role="alert" className="mb-4 rounded-xl bg-rose/10 px-4 py-3 text-sm text-rose">
+          <div role="alert" className="mb-4 rounded-2xl border border-rose/25 bg-rose/[0.07] px-4 py-3 text-sm text-rose">
             {error}
           </div>
         )}
-        <Button type="primary" htmlType="submit" size="large" shape="round" block loading={loading === "form"}>
+        <Button type="primary" htmlType="submit" size="large" shape="round" block loading={loading === "form"} className="press !h-12">
           Sign in
         </Button>
       </Form>

@@ -15,6 +15,8 @@ test("a visitor can explore and donate without an account", async ({ page }) => 
   await expect(page.getByTestId("demo-banner")).toContainText("fictional");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("launchpad");
   await expect(page.getByTestId("platform-stats")).toContainText("$");
+  // The live ledger strip shows real recent gifts from the database.
+  await expect(page.getByTestId("gift-ticker")).toContainText("gave");
 
   await page.getByRole("link", { name: "Browse campaigns" }).first().click();
   await expect(page).toHaveURL(/\/campaigns$/);
@@ -32,11 +34,14 @@ test("a visitor can explore and donate without an account", async ({ page }) => 
   await page.getByTestId("donate-button").click();
   await expect(page.getByTestId("payment-mode-note")).toContainText("Test payment");
   await page.getByRole("button", { name: "$50", exact: true }).click();
+  // The modal previews what the gift does to the campaign's progress.
+  await expect(page.getByTestId("gift-impact")).toContainText("funded");
   await page.getByRole("textbox", { name: "Your name" }).fill("Smoke Test Supporter");
   await page.getByTestId("confirm-donation").click();
 
   await expect(page.getByTestId("donation-success")).toContainText("no money moved");
-  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByTestId("donation-success")).toContainText("Thank you, Smoke.");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByTestId("raised-amount")).toHaveText(`$${(before + 50).toLocaleString("en-CA")}`);
   await expect(page.getByTestId("recent-donations")).toContainText("Smoke Test Supporter");
 });
@@ -66,6 +71,8 @@ test("core loop: organiser creates, admin approves, it goes public", async ({ br
 
   await org.goto("/dashboard");
   await expect(org.getByTestId("my-campaigns")).toContainText(title);
+  // Totals count up on arrival; read them once they have settled.
+  await expect(org.getByTestId("organiser-totals").locator("[data-counting]")).toHaveCount(0);
   const raisedBefore = money(await org.getByTestId("organiser-totals").locator("text=/^\\$/").first().textContent());
 
   // Admin approves it from the analytics review queue.
@@ -85,6 +92,7 @@ test("core loop: organiser creates, admin approves, it goes public", async ({ br
   await guest.getByRole("button", { name: "$25", exact: true }).click();
   await guest.getByTestId("confirm-donation").click();
   await expect(guest.getByTestId("donation-success")).toBeVisible();
+  await guest.getByRole("button", { name: "Done", exact: true }).click();
 
   // Organiser dashboard reflects the gift.
   await org.reload();
@@ -93,4 +101,30 @@ test("core loop: organiser creates, admin approves, it goes public", async ({ br
     .toBe(raisedBefore + 25);
 
   await Promise.all([orgCtx.close(), adminCtx.close(), guestCtx.close()]);
+});
+
+test("unknown pages get a designed 404 with a way back", async ({ page }) => {
+  await page.goto("/this-page-does-not-exist");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("This page drifted out of orbit.");
+  await page.getByRole("link", { name: "Back to the home page" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("launchpad");
+});
+
+test("phone: the donate bar opens a bottom sheet and nothing scrolls sideways", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  for (const path of ["/", "/campaigns"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  }
+  await page.getByTestId("campaign-card").first().click();
+  await page.getByTestId("donate-button-mobile").click();
+  const sheet = page.locator(".cf-sheet-wrap .ant-modal-content");
+  await expect(sheet).toBeVisible();
+  const box = await sheet.boundingBox();
+  expect(Math.round((box?.y || 0) + (box?.height || 0))).toBeGreaterThanOrEqual(843);
+  await expect(page.getByTestId("confirm-donation")).toBeInViewport();
+  await ctx.close();
 });

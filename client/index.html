@@ -2,22 +2,91 @@
 <html lang="en-CA">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#102525" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Captain Funds · community fundraising</title>
     <meta
       name="description"
-      content="Captain Funds: a community fundraising platform. Browse campaigns, give in Stripe test mode, and see organiser and admin dashboards update. Portfolio demo with fictional data."
+      content="Captain Funds: a community fundraising platform. Browse campaigns, give in Stripe test mode, and watch organiser and admin dashboards update from one ledger. Portfolio demo with fictional data."
     />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..700,50&family=Inter:wght@400..700&display=swap"
-      rel="stylesheet"
+    <meta name="theme-color" content="#102525" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Captain Funds" />
+    <meta property="og:title" content="Captain Funds · small causes deserve a proper launchpad" />
+    <meta
+      property="og:description"
+      content="Organisers launch, admins review, supporters give, and one ledger keeps every total honest. Portfolio demo with fictional data and test payments."
     />
-    <title>Captain Funds · community fundraising</title>
+    <meta property="og:image" content="/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Captain Funds: live campaigns orbiting the donation ledger" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        background: #102525;
+        transition: opacity 0.5s ease, visibility 0.5s;
+      }
+      #boot.gone {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #boot .sys {
+        position: relative;
+        width: 84px;
+        height: 84px;
+      }
+      #boot .sun {
+        position: absolute;
+        inset: 30px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 36% 30%, #fff1d2, #f0a43a 60%, #d98a1c);
+        box-shadow: 0 0 30px 6px rgba(240, 164, 58, 0.35);
+      }
+      #boot .orb {
+        position: absolute;
+        inset: 0;
+        border: 1px solid rgba(247, 244, 238, 0.14);
+        border-radius: 50%;
+        animation: boot-spin 1.6s linear infinite;
+      }
+      #boot .orb::after {
+        content: "";
+        position: absolute;
+        top: -5px;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        margin-left: -5px;
+        border-radius: 50%;
+        background: #a6d1ff;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot .orb {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" aria-hidden="true"><div class="sys"><div class="orb"></div><div class="sun"></div></div></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

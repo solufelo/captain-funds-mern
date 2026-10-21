@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Input, Select, Skeleton } from "antd";
+import { Button, Input, Select } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { useSearchParams } from "react-router-dom";
 import { CATEGORIES } from "../../../../shared/demo-seed.js";
@@ -7,7 +7,9 @@ import api from "../../lib/api";
 import { useAsync } from "../../lib/hooks";
 import type { CampaignQuery } from "../../interfaces";
 import CampaignCard from "../../components/CampaignCard";
-import { Container, EmptyState, PageHeader } from "../../components/ui";
+import { Container, EmptyState, PageHeader, Skel } from "../../components/ui";
+import { Reveal } from "../../lib/motion";
+import { paletteFor } from "../../lib/palette";
 
 const SORTS: { value: NonNullable<CampaignQuery["sort"]>; label: string }[] = [
   { value: "featured", label: "Featured first" },
@@ -47,14 +49,14 @@ export default function CampaignsPage() {
   );
 
   return (
-    <Container className="py-12">
-      <PageHeader kicker="Campaigns" title="Find something worth backing">
-        Every campaign here has been reviewed by an admin. Give as a guest or sign in to keep a history.
+    <Container className="py-10 sm:py-14">
+      <PageHeader kicker="Campaigns" title={<>Find something <em className="font-normal italic text-ink-3">worth backing.</em></>}>
+        Every campaign here has been reviewed by an admin. Give as a guest, or sign in to keep a history.
       </PageHeader>
 
-      <div className="sticky top-16 z-30 -mx-4 mb-8 border-b border-line/60 bg-paper/90 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
+      <div className="sticky top-16 z-30 -mx-4 mb-8 border-b border-line/60 bg-paper/85 px-4 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-[1.4rem] sm:border sm:bg-card/85 sm:px-4">
         <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <Input
               allowClear
               size="large"
@@ -63,6 +65,7 @@ export default function CampaignsPage() {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               aria-label="Search campaigns"
+              className="!rounded-full"
             />
             <Select
               size="large"
@@ -70,20 +73,22 @@ export default function CampaignsPage() {
               onChange={(v) => update({ sort: v === "featured" ? "" : v })}
               options={SORTS}
               aria-label="Sort campaigns"
-              className="w-40 shrink-0 sm:w-48"
+              className="w-full shrink-0 sm:w-52"
+              popupMatchSelectWidth={false}
             />
           </div>
-          <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1" role="tablist" aria-label="Categories">
+          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:-mx-1 sm:px-1" role="tablist" aria-label="Categories">
             {["", ...CATEGORIES].map((c) => (
               <button
                 key={c || "all"}
                 role="tab"
                 aria-selected={category === c}
                 onClick={() => update({ category: c })}
-                className={`shrink-0 cursor-pointer rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                className={`press inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors duration-200 ${
                   category === c ? "border-ink bg-ink text-paper" : "border-line bg-card text-ink hover:border-ink/40"
                 }`}
               >
+                {c && <span className="h-2 w-2 rounded-full" style={{ background: paletteFor(c)[category === c ? 2 : 1] }} />}
                 {c || "All"}
               </button>
             ))}
@@ -92,33 +97,50 @@ export default function CampaignsPage() {
       </div>
 
       {error ? (
-        <EmptyState title="Couldn't load campaigns">Check that the API is running, then refresh the page.</EmptyState>
+        <EmptyState title="Couldn't load campaigns" tone="rose">
+          Check that the API is running, then refresh the page.
+        </EmptyState>
       ) : loading && !data ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Loading campaigns">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="overflow-hidden rounded-3xl border border-line bg-card">
-              <div className="aspect-[16/10] bg-paper-2" />
-              <div className="p-5">
-                <Skeleton active paragraph={{ rows: 2 }} />
+            <div key={i} className="overflow-hidden rounded-[1.6rem] border border-line bg-card">
+              <Skel className="aspect-[16/10] !rounded-none" />
+              <div className="p-6">
+                <Skel className="h-3 w-1/3" />
+                <Skel className="mt-3 h-6 w-4/5" />
+                <Skel className="mt-6 h-2 w-full" />
+                <Skel className="mt-3 h-4 w-1/2" />
               </div>
             </div>
           ))}
         </div>
       ) : data && data.length ? (
         <>
-          <p className="mb-4 text-sm text-muted" aria-live="polite">
-            {data.length} campaign{data.length === 1 ? "" : "s"}
+          <p className="mb-5 text-sm text-muted" aria-live="polite">
+            <strong className="font-semibold text-ink">{data.length}</strong> campaign{data.length === 1 ? "" : "s"}
             {category && ` in ${category}`}
-            {q && ` matching "${q}"`}
+            {q && ` matching “${q}”`}
           </p>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {data.map((c) => (
-              <CampaignCard key={c._id} campaign={c} />
+            {data.map((c, i) => (
+              <Reveal key={c._id} delay={(i % 3) * 90} className="h-full">
+                <CampaignCard campaign={c} />
+              </Reveal>
             ))}
           </div>
         </>
       ) : (
-        <EmptyState title="Nothing matches yet">Try another category or clear the search.</EmptyState>
+        <EmptyState
+          title="Nothing matches yet"
+          tone="sky"
+          action={
+            <Button shape="round" size="large" onClick={() => { setDraft(""); setParams(new URLSearchParams(), { replace: true }); }}>
+              Clear search and filters
+            </Button>
+          }
+        >
+          {q ? `No campaign mentions “${q}”${category ? ` in ${category}` : ""}.` : `No live campaigns in ${category || "this view"} right now.`}
+        </EmptyState>
       )}
     </Container>
   );

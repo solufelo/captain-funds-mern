@@ -69,6 +69,8 @@ export interface PlatformStats {
   totalDonations: number;
   liveCampaigns: number;
   organisers: number;
+  /** Latest gifts to public campaigns, newest first (public shape). */
+  recentGifts?: PublicDonation[];
 }
 
 export interface DailyPoint {

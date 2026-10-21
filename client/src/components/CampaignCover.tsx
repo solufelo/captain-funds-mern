@@ -1,22 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { PALETTES } from "../lib/palette";
 
 // Deterministic cover art for campaigns without a photo: a small "planet"
 // scene coloured by category and laid out from a hash of the campaign id, so
 // each campaign always gets the same, distinct cover.
-const PALETTES: Record<string, [string, string, string, string]> = {
-  Education: ["#13294a", "#3c6fb0", "#a6d1ff", "#f0a43a"],
-  Healthcare: ["#4a1820", "#b4505c", "#ffd0c8", "#a6d1ff"],
-  Environment: ["#0f2e24", "#3f7d5c", "#cfe8b4", "#f0a43a"],
-  "Community Development": ["#0e2a2a", "#2e6a66", "#fbe3b8", "#f0a43a"],
-  "Emergency Relief": ["#3a1312", "#b23a2e", "#ffd4a8", "#fbe3b8"],
-  "Arts & Culture": ["#26173f", "#7b4fb0", "#f5c6e8", "#f0a43a"],
-  "Sports & Recreation": ["#0c3434", "#1f8a86", "#b8f0e6", "#f0a43a"],
-  Technology: ["#0d1a30", "#2f4e8c", "#9fe3ff", "#f0a43a"],
-  "Animal Welfare": ["#38220f", "#a8693a", "#f7d9b0", "#a6d1ff"],
-  "Human Rights": ["#241d33", "#5b4b8a", "#f2e3a6", "#a6d1ff"],
-  Other: ["#102525", "#2b5b5b", "#a6d1ff", "#f0a43a"],
-};
-
 function hash(str: string) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
@@ -39,9 +26,12 @@ interface Props {
   image?: string;
   title?: string;
   className?: string;
+  /** Slow float + twinkle, for the one big cover on a page. */
+  alive?: boolean;
+  style?: CSSProperties;
 }
 
-export default function CampaignCover({ id, category, image, title = "", className = "" }: Props) {
+export default function CampaignCover({ id, category, image, title = "", className = "", alive = false, style }: Props) {
   const [broken, setBroken] = useState(false);
   const scene = useMemo(() => {
     const r = rng(hash(id + category));
@@ -67,7 +57,7 @@ export default function CampaignCover({ id, category, image, title = "", classNa
 
   if (image && !broken) {
     return (
-      <div className={`relative overflow-hidden bg-ink ${className}`}>
+      <div className={`relative overflow-hidden bg-ink ${className}`} style={style}>
         <img
           src={image}
           alt={title}
@@ -81,8 +71,24 @@ export default function CampaignCover({ id, category, image, title = "", classNa
 
   const g = `g-${hash(id).toString(36)}`;
   const { deep, mid, planet, accent, px, py, pr, tilt, stars, moonAngle } = scene;
+  const ring = (sweep: 0 | 1, width: number, opacity = 1) => (
+    <path
+      d={`M ${px - pr * 1.75} ${py} A ${pr * 1.75} ${pr * 0.42} 0 0 ${sweep} ${px + pr * 1.75} ${py}`}
+      fill="none"
+      stroke={accent}
+      strokeWidth={width}
+      strokeLinecap="round"
+      opacity={opacity}
+      transform={`rotate(${tilt} ${px} ${py})`}
+    />
+  );
   return (
-    <div className={`relative overflow-hidden ${className}`} role="img" aria-label={`${category} cover art`}>
+    <div
+      className={`relative overflow-hidden ${alive ? "cv-alive" : ""} ${className}`}
+      style={{ background: deep, ...style }}
+      role="img"
+      aria-label={`${category} cover art`}
+    >
       <svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
         <defs>
           <linearGradient id={`${g}-sky`} x1="0" y1="0" x2="0.4" y2="1">
@@ -94,6 +100,10 @@ export default function CampaignCover({ id, category, image, title = "", classNa
             <stop offset="0.25" stopColor={planet} />
             <stop offset="1" stopColor={mid} />
           </radialGradient>
+          <radialGradient id={`${g}-shade`} cx="0.75" cy="0.8" r="0.7">
+            <stop offset="0" stopColor={deep} stopOpacity="0.55" />
+            <stop offset="1" stopColor={deep} stopOpacity="0" />
+          </radialGradient>
           <radialGradient id={`${g}-glow`} cx="0.5" cy="0.5" r="0.5">
             <stop offset="0" stopColor={planet} stopOpacity="0.45" />
             <stop offset="1" stopColor={planet} stopOpacity="0" />
@@ -101,33 +111,30 @@ export default function CampaignCover({ id, category, image, title = "", classNa
         </defs>
         <rect width="400" height="250" fill={`url(#${g}-sky)`} />
         {stars.map((s, i) => (
-          <circle key={i} cx={s.x} cy={s.y} r={s.s} fill="#fff" opacity={s.o} />
+          <circle
+            key={i}
+            className="cv-star"
+            cx={s.x}
+            cy={s.y}
+            r={s.s}
+            fill="#fff"
+            opacity={s.o}
+            style={{ "--d": `${(i % 7) * 0.45}s` } as CSSProperties}
+          />
         ))}
         <circle cx={px} cy={py} r={pr * 2} fill={`url(#${g}-glow)`} />
-        <g transform={`rotate(${tilt} ${px} ${py})`}>
-          <path
-            d={`M ${px - pr * 1.75} ${py} A ${pr * 1.75} ${pr * 0.42} 0 0 1 ${px + pr * 1.75} ${py}`}
-            fill="none"
-            stroke={accent}
-            strokeWidth="3"
-            opacity="0.55"
+        <g className="cv-planet">
+          <g className="cv-ring">{ring(1, 3, 0.55)}</g>
+          <circle cx={px} cy={py} r={pr} fill={`url(#${g}-planet)`} />
+          <circle cx={px} cy={py} r={pr} fill={`url(#${g}-shade)`} />
+          <g className="cv-ring">{ring(0, 3.5)}</g>
+          <circle
+            cx={px + Math.cos(moonAngle) * pr * 1.9}
+            cy={py + Math.sin(moonAngle) * pr * 0.9}
+            r={pr * 0.13}
+            fill={accent}
           />
         </g>
-        <circle cx={px} cy={py} r={pr} fill={`url(#${g}-planet)`} />
-        <g transform={`rotate(${tilt} ${px} ${py})`}>
-          <path
-            d={`M ${px - pr * 1.75} ${py} A ${pr * 1.75} ${pr * 0.42} 0 0 0 ${px + pr * 1.75} ${py}`}
-            fill="none"
-            stroke={accent}
-            strokeWidth="3.5"
-          />
-        </g>
-        <circle
-          cx={px + Math.cos(moonAngle) * pr * 1.9}
-          cy={py + Math.sin(moonAngle) * pr * 0.9}
-          r={pr * 0.13}
-          fill={accent}
-        />
         <path d={scene.far} fill={deep} opacity="0.55" />
         <path d={scene.near} fill={deep} opacity="0.9" />
       </svg>

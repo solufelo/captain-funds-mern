@@ -8,41 +8,78 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  font-feature-settings: "cv11", "ss01";
+  font-size: var(--text-step-0);
+  line-height: 1.6;
   background: var(--color-paper);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
 }
 
+::selection {
+  background: var(--color-amber);
+  color: var(--color-ink);
+}
+
+/* One focus ring everywhere: a paper gap then an amber ring, so it reads on
+   light cards, the ink header and amber buttons alike. */
+:where(a, button, [role="button"], [role="tab"], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.ant-btn:focus-visible,
+.ant-switch:focus-visible {
+  outline: 2px solid var(--color-amber) !important;
+  outline-offset: 3px !important;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
 .font-display {
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 50, "WONK" 0;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.022em;
+  font-feature-settings: "lnum", "kern";
+}
+.display-tight {
+  letter-spacing: -0.038em;
 }
 
 .tabular {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .kicker {
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .ant-form-item {
   margin-bottom: 18px;
+}
+.ant-form-item-label > label {
+  font-weight: 500;
 }
 
 /* Subtle paper grain on large surfaces. */
@@ -60,21 +97,542 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.06 0 0 0 0 0.14 0 0 0 0 0.14 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* ---- Motion ------------------------------------------------------------ */
+
 .lift {
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.35s ease;
+  transition:
+    transform 0.5s var(--ease-out-expo),
+    box-shadow 0.5s var(--ease-out-expo),
+    border-color 0.3s ease;
 }
 .lift:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 18px 40px -22px rgba(16, 37, 37, 0.45);
+  transform: translateY(-4px);
+  box-shadow: 0 28px 50px -30px rgba(16, 37, 37, 0.5);
+  border-color: rgba(16, 37, 37, 0.22);
+}
+.lift:active {
+  transform: translateY(-1px) scale(0.995);
+  transition-duration: 0.12s;
+}
+
+.press {
+  transition: transform 0.18s var(--ease-out-quint);
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+/* Page entrance on route change (SiteLayout keys it by pathname). */
+/* Opacity only: a transform here would trap position:fixed children (the
+   phone donate bar) for the length of the animation. */
+.page-enter {
+  animation: page-enter 0.5s ease-out backwards;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
 }
 
 .reveal {
-  animation: reveal 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: reveal 0.9s var(--ease-out-expo) both;
+  animation-delay: var(--d, 0ms);
 }
 @keyframes reveal {
   from {
     opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* Scroll reveals: <Reveal> adds .in once the element enters the viewport.
+   Without JS (or before hydration) nothing is hidden. */
+.sr {
+  transition:
+    opacity 0.9s var(--ease-out-expo),
+    transform 0.9s var(--ease-out-expo);
+  transition-delay: var(--d, 0ms);
+}
+.js .sr:not(.in) {
+  opacity: 0;
+  transform: translateY(26px);
+}
+
+/* Masked line reveal for display headings. */
+.line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.line-mask > span {
+  display: inline-block;
+  animation: line-up 1.1s var(--ease-out-expo) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes line-up {
+  from {
+    transform: translateY(105%);
+  }
+}
+
+/* Grow-in bars (progress, chart bars) when revealed. */
+.grow-x {
+  transform-origin: left center;
+  animation: grow-x 1.4s var(--ease-out-expo) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.gain-stripes {
+  background: repeating-linear-gradient(-45deg, #f0a43a 0 5px, #fbd79a 5px 10px);
+  background-size: 28px 28px;
+  animation: stripes 1.2s linear infinite;
+}
+@keyframes stripes {
+  to {
+    background-position: 28px 0;
+  }
+}
+.spark-draw {
+  stroke-dasharray: 1;
+  animation: spark-draw 2s var(--ease-out-quint) 0.3s both;
+}
+@keyframes spark-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+.sr .sr-line {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1.8s var(--ease-out-expo) 0.25s;
+}
+.sr.in .sr-line {
+  transform: none;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  border-radius: 12px;
+  background: linear-gradient(90deg, #ece5d7 0%, #f6f1e7 40%, #ece5d7 80%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+@keyframes float-y {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes twinkle {
+  50% {
+    opacity: 0.15;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Generated covers: the planet drifts and the ring turns a little on hover. */
+.cv-planet,
+.cv-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 1.1s var(--ease-out-expo);
+}
+.group:hover .cv-planet {
+  transform: translate(-6px, -4px) scale(1.04);
+}
+.group:hover .cv-ring {
+  transform: rotate(-6deg) scale(1.03);
+}
+.cv-alive .cv-planet {
+  animation: float-y 7s ease-in-out infinite;
+}
+.cv-alive .cv-star {
+  animation: twinkle 3.6s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+
+/* ---- Hero orbit ---------------------------------------------------- */
+.sun {
+  background: radial-gradient(circle at 36% 30%, #fff1d2 0%, #ffd48a 22%, #f0a43a 58%, #d98a1c 100%);
+  box-shadow:
+    0 0 0 10px rgba(240, 164, 58, 0.07),
+    0 0 0 26px rgba(240, 164, 58, 0.04),
+    0 0 70px 14px rgba(240, 164, 58, 0.32),
+    0 0 180px 50px rgba(240, 164, 58, 0.16);
+  animation: sun-in 1.4s var(--ease-out-expo) 0.15s both;
+}
+.sun::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 212, 138, 0.28), rgba(255, 212, 138, 0) 68%);
+  animation: corona 5s ease-in-out infinite;
+  z-index: -1;
+}
+@keyframes sun-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes corona {
+  50% {
+    transform: scale(1.12);
+    opacity: 0.6;
+  }
+}
+.orbit-path {
+  animation: fade-in 1.6s ease both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.planet {
+  opacity: calc(0.62 + 0.38 * (var(--depth, 1) + 1) / 2);
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+.planet-in {
+  transition: transform 0.6s var(--ease-out-expo);
+  animation: planet-in 1.1s var(--ease-out-expo) both;
+  animation-delay: calc(500ms + var(--i, 0) * 110ms);
+}
+@keyframes planet-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+.planet:hover .planet-in,
+.planet.is-active .planet-in {
+  transform: scale(1.14);
+}
+.planet.is-active::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 1px solid rgba(240, 164, 58, 0.7);
+  animation: halo 2.4s var(--ease-out-quint) infinite;
+  pointer-events: none;
+}
+@keyframes halo {
+  from {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+.planet-tag {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 2px);
+  transform: translate(-50%, 4px);
+  border-radius: 999px;
+  background: var(--color-amber);
+  color: var(--color-ink);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 7px;
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    transform 0.5s var(--ease-out-expo);
+  pointer-events: none;
+}
+.planet.is-active .planet-tag {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.orbit-card {
+  animation: card-swap 0.7s var(--ease-out-expo) both;
+  transition:
+    transform 0.5s var(--ease-out-expo),
+    box-shadow 0.5s var(--ease-out-expo);
+}
+.orbit-card:hover {
+  transform: translateY(-3px);
+}
+@keyframes card-swap {
+  from {
+    opacity: 0;
     transform: translateY(12px);
+  }
+}
+.drift {
+  animation: drift 9s ease-in-out infinite;
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(-10deg);
+  }
+  50% {
+    transform: translate(-12px, 16px) rotate(8deg);
+  }
+}
+.mini-orbit {
+  animation: spin var(--dur, 60s) linear infinite;
+}
+.twinkle {
+  animation: twinkle 3.6s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+.ticker-track {
+  animation: marquee var(--ticker-s, 60s) linear infinite;
+}
+.ticker:hover .ticker-track,
+.ticker:focus-within .ticker-track {
+  animation-play-state: paused;
+}
+
+/* Mobile menu (antd Drawer, restyled as an ink sheet). */
+.cf-menu .ant-drawer-content {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.cf-menu .ant-drawer-header {
+  border-bottom: 1px solid rgba(247, 244, 238, 0.1);
+  padding: 14px 20px;
+}
+.cf-menu .ant-drawer-header-title {
+  flex-direction: row-reverse;
+}
+.cf-menu .ant-drawer-close {
+  margin: 0 0 0 auto;
+  width: 44px;
+  height: 44px;
+}
+.cf-menu .ant-drawer-body {
+  padding: 8px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.cf-menu .ant-drawer-mask {
+  background: rgba(8, 20, 20, 0.5);
+  backdrop-filter: blur(4px);
+}
+.cf-menu-item {
+  animation: menu-in 0.7s var(--ease-out-expo) both;
+  animation-delay: calc(120ms + var(--i, 0) * 60ms);
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+.donate-cta:not(:disabled):hover .heart {
+  animation: heartbeat 1s ease-in-out infinite;
+}
+@keyframes heartbeat {
+  0%, 60%, 100% { transform: scale(1); }
+  20% { transform: scale(1.25); }
+  40% { transform: scale(0.95); }
+}
+.supporter {
+  animation: reveal 0.7s var(--ease-out-expo) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* ---- Donation ------------------------------------------------------- */
+.amount-input .ant-input-number-input {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 2rem + 2vw, 3.1rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  height: auto;
+  padding: 0 0 0 4px;
+  color: var(--color-ink);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.amount-input.ant-input-number {
+  padding: 0;
+}
+.amount-input .ant-input-number-handler-wrap {
+  display: none;
+}
+.amount-input .ant-input-number-prefix {
+  margin-inline-end: 0;
+}
+.donate-form .ant-form-item-label {
+  padding-bottom: 6px;
+}
+.ticket {
+  border-radius: 20px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+}
+.ticket-cut {
+  position: relative;
+  margin: 0 16px;
+  border-top: 1.5px dashed var(--color-line);
+}
+.ticket-cut::before,
+.ticket-cut::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+}
+.ticket-cut::before {
+  left: -27px;
+  clip-path: inset(0 0 0 50%);
+}
+.ticket-cut::after {
+  right: -27px;
+  clip-path: inset(0 50% 0 0);
+}
+.arc-draw {
+  stroke-dasharray: var(--len) var(--c);
+  animation: arc-draw 1.3s var(--ease-out-expo) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes arc-draw {
+  from {
+    stroke-dasharray: 0 var(--c);
+  }
+}
+.pop-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pop-in 0.9s var(--ease-spring) both;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+.check-pop {
+  animation: pop-in 0.7s var(--ease-spring) 1.1s both;
+}
+.check-draw {
+  stroke-dasharray: 24;
+  animation: check-draw 0.5s var(--ease-out-quint) 1.35s both;
+}
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+}
+.burst {
+  opacity: 0;
+  animation: burst 1.3s var(--ease-out-expo) both;
+  animation-delay: var(--d, 700ms);
+}
+@keyframes burst {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(56px) scale(0.3);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(var(--dist)) scale(1);
+  }
+}
+
+/* Modal motion (DonationModal): a designed pop on desktop, a sheet on phones. */
+.cf-pop-enter,
+.cf-pop-appear {
+  opacity: 0;
+  transform: translateY(18px) scale(0.97);
+}
+.cf-pop-enter-active,
+.cf-pop-appear-active {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.6s var(--ease-out-expo);
+}
+.cf-pop-leave {
+  opacity: 1;
+}
+.cf-pop-leave-active {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition:
+    opacity 0.2s ease,
+    transform 0.25s ease;
+}
+.cf-sheet-enter,
+.cf-sheet-appear {
+  transform: translateY(100%);
+}
+.cf-sheet-enter-active,
+.cf-sheet-appear-active {
+  transform: none;
+  transition: transform 0.55s var(--ease-out-expo);
+}
+.cf-sheet-leave-active {
+  transform: translateY(100%);
+  transition: transform 0.3s ease-in;
+}
+
+@media (max-width: 639px) {
+  .cf-sheet-wrap {
+    display: flex;
+    align-items: flex-end;
+  }
+  .cf-sheet-wrap .ant-modal {
+    top: 0;
+    margin: 0;
+    padding-bottom: 0;
+    width: 100% !important;
+    max-width: 100%;
+    vertical-align: bottom;
+  }
+  .cf-sheet-wrap .donate-submit {
+    position: sticky;
+    bottom: calc(-20px - env(safe-area-inset-bottom, 0px));
+    margin-inline: -20px;
+    padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    margin-bottom: calc(-20px - env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, var(--color-card) 70%, rgba(255, 253, 249, 0));
+    z-index: 2;
+  }
+  .cf-sheet-wrap .ant-modal-content {
+    border-radius: 28px 28px 0 0 !important;
+    max-height: 92svh;
+    overflow-y: auto;
+    padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
@@ -82,10 +640,18 @@ body {
   html {
     scroll-behavior: auto;
   }
-  .reveal,
-  .lift {
-    animation: none;
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-delay: 0ms !important;
+  }
+  .js .sr:not(.in) {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -103,9 +669,21 @@ body {
   text-decoration-color: var(--color-amber);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
+  transition: color 0.2s ease;
 }
 :where(a:not([class])):hover {
   color: var(--color-amber-deep);
+}
+
+/* Animated underline for text links that opt in. */
+.link-u {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat;
+  transition: background-size 0.45s var(--ease-out-expo);
+  padding-bottom: 2px;
+}
+.link-u:hover,
+.link-u:focus-visible {
+  background-size: 100% 1.5px;
 }
 
 .story p + p {

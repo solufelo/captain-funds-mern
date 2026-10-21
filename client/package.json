@@ -10,12 +10,15 @@
     "build:demo": "vite build --mode demo",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "test:unit": "node --test \"src/**/*.test.ts\"",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:demo": "playwright test -c playwright.demo.config.ts"
   },
   "dependencies": {
     "@ant-design/cssinjs": "^1.24.0",
+    "@fontsource-variable/fraunces": "5.3.0",
+    "@fontsource-variable/instrument-sans": "5.3.0",
     "@tailwindcss/postcss": "^4.1.13",
     "antd": "^5.27.3",
     "axios": "^1.11.0",

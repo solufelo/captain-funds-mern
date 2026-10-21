@@ -275,6 +275,11 @@ export const demoApi = {
       totalDonations: state.donations.length,
       liveCampaigns: pub.filter(acceptsDonations).length,
       organisers: new Set(pub.map((c) => c.createdBy)).size,
+      recentGifts: state.donations
+        .filter((d) => pub.some((c) => c._id === d.campaignId))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10)
+        .map(toPublic),
     };
   },
 

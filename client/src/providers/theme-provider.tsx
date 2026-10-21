@@ -21,9 +21,11 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
             colorBgLayout: "#f7f4ee",
             colorError: "#b8483e",
             colorSuccess: "#2f7a57",
-            colorWarning: "#c97a12",
+            colorWarning: "#a05f08",
             borderRadius: 12,
-            fontFamily: '"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+            fontFamily: '"Instrument Sans Variable", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif',
+            fontSize: 15,
+            colorTextPlaceholder: "#8a9592",
             controlOutline: "rgba(240, 164, 58, 0.25)",
           },
           components: {
@@ -34,7 +36,8 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
             DatePicker: { controlHeight: 40, controlHeightLG: 48 },
             Table: { headerBg: "#f7f4ee", headerColor: "#5b6966", borderColor: "#ece6da" },
             Segmented: { itemSelectedBg: "#1a3636", itemSelectedColor: "#f7f4ee", trackBg: "#efe9dd" },
-            Modal: { borderRadiusLG: 24 },
+            Modal: { borderRadiusLG: 28, contentBg: "#fffdf9" },
+            Drawer: { colorBgElevated: "#102525" },
           },
         }}
       >

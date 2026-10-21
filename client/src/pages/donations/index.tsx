@@ -1,10 +1,10 @@
-import { Button, Skeleton, Table, Tag } from "antd";
+import { Button, Table, Tag } from "antd";
 import { Link } from "react-router-dom";
 import api from "../../lib/api";
 import { useAsync } from "../../lib/hooks";
 import { formatDate, formatMoney, SOURCE_LABEL } from "../../lib/format";
 import type { MyDonation } from "../../interfaces";
-import { Container, EmptyState, PageHeader, Stat } from "../../components/ui";
+import { Container, EmptyState, PageHeader, Skel, Stat } from "../../components/ui";
 
 export default function DonationsPage() {
   const { data, loading, error } = useAsync(() => api.myDonations(), []);
@@ -15,9 +15,16 @@ export default function DonationsPage() {
         Gifts you made while signed in. Guest gifts aren't linked to an account.
       </PageHeader>
       {error ? (
-        <EmptyState title="Couldn't load your donations">Refresh the page, or sign in again.</EmptyState>
+        <EmptyState title="Couldn't load your donations" tone="rose">Refresh the page, or sign in again.</EmptyState>
       ) : loading && !data ? (
-        <Skeleton active paragraph={{ rows: 6 }} />
+        <div role="status" aria-label="Loading your donations">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Skel className="h-[7.5rem] !rounded-[1.4rem]" />
+            <Skel className="h-[7.5rem] !rounded-[1.4rem]" />
+            <Skel className="h-[7.5rem] !rounded-[1.4rem]" />
+          </div>
+          <Skel className="mt-6 h-72 !rounded-[1.6rem]" />
+        </div>
       ) : data && data.donations.length ? (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

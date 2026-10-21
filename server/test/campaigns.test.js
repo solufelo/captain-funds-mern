@@ -1,7 +1,7 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { DEMO_ACCOUNTS, inDays, startTestApp, stopTestApp, tokenFor, validCampaign } from "./helpers.js";
-import Campaign from "../models/campaignmodel.js";
+import Campaign, { PUBLIC_FILTER } from "../models/campaignmodel.js";
 
 let app, api, organiser, admin;
 before(async () => {
@@ -58,6 +58,20 @@ describe("public campaigns", () => {
     const sum = (await Campaign.find({})).reduce((s, c) => s + c.EventCurrentAmount, 0);
     assert.equal(res.body.stats.totalRaised, sum);
     assert.ok(res.body.stats.liveCampaigns >= 5);
+  });
+
+  test("stats carry a public feed of recent gifts", async () => {
+    const res = await api().get("/api/campaigns/stats");
+    const gifts = res.body.stats.recentGifts;
+    assert.ok(gifts.length > 0 && gifts.length <= 10);
+    const times = gifts.map((g) => new Date(g.createdAt).getTime());
+    assert.deepEqual(times, [...times].sort((a, b) => b - a), "newest first");
+    const publicIds = new Set((await Campaign.find(PUBLIC_FILTER)).map((c) => String(c._id)));
+    for (const g of gifts) {
+      assert.equal(g.donorEmail, undefined);
+      assert.ok(publicIds.has(String(g.campaignId)), "only gifts to public campaigns");
+      assert.ok(g.campaignTitle);
+    }
   });
 });
 
