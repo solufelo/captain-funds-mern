@@ -24,7 +24,7 @@ export async function seedDemoData({ reset = false, now = Date.now() } = {}) {
     const password = await bcrypt.hash(u.password || crypto.randomBytes(24).toString("hex"), 10);
     const user = await User.findOneAndUpdate(
       { email: u.email },
-      { $setOnInsert: { name: u.name, email: u.email, password, isAdmin: u.isAdmin, isActive: true } },
+      { $setOnInsert: { name: u.name, email: u.email, password, isAdmin: u.isAdmin, isActive: true, timeStamp: u.joinedAt } },
       { upsert: true, new: true },
     );
     userIds.set(u.key, user._id);
@@ -43,6 +43,7 @@ export async function seedDemoData({ reset = false, now = Date.now() } = {}) {
   await Donation.collection.insertMany(
     seed.donations.map((d) => ({
       campaign: campaignIds.get(d.campaignKey),
+      ...(d.donorKey && { donor: userIds.get(d.donorKey) }),
       campaignTitle: seed.campaigns.find((c) => c.key === d.campaignKey).title,
       donorName: d.donorName,
       amount: d.amount,

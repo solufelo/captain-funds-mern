@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { App, Button, Form, Modal, Popconfirm, Segmented, Space, Table, Tooltip } from "antd";
-import { CheckOutlined, CloseOutlined, DeleteOutlined, EditOutlined, StarFilled, StarOutlined } from "@ant-design/icons";
+import { App, Button, Dropdown, Form, Modal, Segmented, Table } from "antd";
+import type { MenuProps } from "antd";
+import { CheckOutlined, CloseOutlined, DeleteOutlined, DownOutlined, EditOutlined, StarFilled, StarOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import api from "../../../lib/api";
 import { useAsync } from "../../../lib/hooks";
@@ -14,7 +15,7 @@ import { Container, PageHeader, ProgressBar, StateBadge } from "../../../compone
 type Filter = "all" | CampaignState;
 
 export default function AdminCampaignManagement() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { data, loading, reload } = useAsync(() => api.adminCampaigns(), []);
   const [filter, setFilter] = useState<Filter>("all");
   const [editing, setEditing] = useState<Campaign | null>(null);
@@ -107,40 +108,59 @@ export default function AdminCampaignManagement() {
             {
               title: "",
               key: "actions",
-              width: 210,
-              render: (_, c) => (
-                <Space size={4}>
-                  {!c.isApproved && (
-                    <Tooltip title="Approve">
-                      <Button size="small" shape="circle" type="primary" icon={<CheckOutlined />} aria-label="Approve"
-                        onClick={() => run(() => api.adminCampaignAction(c._id, "approve"), "Approved.")} />
-                    </Tooltip>
-                  )}
-                  {!c.isRejected && (
-                    <Tooltip title="Reject">
-                      <Button size="small" shape="circle" icon={<CloseOutlined />} aria-label="Reject"
-                        onClick={() => run(() => api.adminCampaignAction(c._id, "reject"), "Rejected.")} />
-                    </Tooltip>
-                  )}
-                  <Tooltip title={c.isFeatured ? "Unfeature" : "Feature"}>
-                    <Button size="small" shape="circle" aria-label="Toggle featured"
-                      icon={c.isFeatured ? <StarFilled className="text-amber" /> : <StarOutlined />}
-                      onClick={() => run(() => api.adminCampaignAction(c._id, "feature"), c.isFeatured ? "Unfeatured." : "Featured.")} />
-                  </Tooltip>
-                  <Tooltip title="Edit">
-                    <Button size="small" shape="circle" icon={<EditOutlined />} aria-label="Edit" onClick={() => setEditing(c)} />
-                  </Tooltip>
-                  <Popconfirm
-                    title="Delete this campaign?"
-                    description="It disappears from public pages. Its donation records are kept."
-                    okText="Delete"
-                    okButtonProps={{ danger: true }}
-                    onConfirm={() => run(() => api.adminCampaignAction(c._id, "delete"), "Deleted.")}
-                  >
-                    <Button size="small" shape="circle" danger icon={<DeleteOutlined />} aria-label="Delete" />
-                  </Popconfirm>
-                </Space>
-              ),
+              width: 220,
+              render: (_, c) => {
+                // One labelled main action per row (approve while in review, otherwise edit); the rest in a menu.
+                const reviewing = !c.isApproved && !c.isRejected;
+                const approve = () => run(() => api.adminCampaignAction(c._id, "approve"), "Approved.");
+                const items: MenuProps["items"] = [
+                  ...(reviewing ? [{ key: "edit", label: "Edit details", icon: <EditOutlined />, onClick: () => setEditing(c) }] : []),
+                  ...(!reviewing && !c.isApproved ? [{ key: "approve", label: "Approve", icon: <CheckOutlined />, onClick: approve }] : []),
+                  ...(!c.isRejected
+                    ? [{ key: "reject", label: "Reject", icon: <CloseOutlined />, onClick: () => run(() => api.adminCampaignAction(c._id, "reject"), "Rejected.") }]
+                    : []),
+                  {
+                    key: "feature",
+                    label: c.isFeatured ? "Remove from featured" : "Feature on home page",
+                    icon: c.isFeatured ? <StarFilled className="text-amber" /> : <StarOutlined />,
+                    onClick: () => run(() => api.adminCampaignAction(c._id, "feature"), c.isFeatured ? "Unfeatured." : "Featured."),
+                  },
+                  { type: "divider" },
+                  {
+                    key: "delete",
+                    label: "Delete",
+                    icon: <DeleteOutlined />,
+                    danger: true,
+                    onClick: () =>
+                      modal.confirm({
+                        title: `Delete “${c.title}”?`,
+                        content: "It disappears from public pages. Its donation records are kept.",
+                        okText: "Delete",
+                        okButtonProps: { danger: true, shape: "round" },
+                        cancelButtonProps: { shape: "round" },
+                        onOk: () => run(() => api.adminCampaignAction(c._id, "delete"), "Deleted."),
+                      }),
+                  },
+                ];
+                return (
+                  <div className="flex items-center justify-end gap-2">
+                    {reviewing ? (
+                      <Button type="primary" shape="round" icon={<CheckOutlined />} onClick={approve}>
+                        Approve
+                      </Button>
+                    ) : (
+                      <Button shape="round" icon={<EditOutlined />} onClick={() => setEditing(c)}>
+                        Edit
+                      </Button>
+                    )}
+                    <Dropdown menu={{ items }} trigger={["click"]} placement="bottomRight">
+                      <Button shape="round" aria-label={`More actions for ${c.title}`}>
+                        More <DownOutlined className="text-[0.7rem]" />
+                      </Button>
+                    </Dropdown>
+                  </div>
+                );
+              },
             },
           ]}
         />

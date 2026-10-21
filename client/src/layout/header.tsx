@@ -1,19 +1,39 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { Avatar, Button, Drawer, Dropdown } from "antd";
-import type { MenuProps } from "antd";
-import {
-  BarChartOutlined,
-  DashboardOutlined,
-  FundOutlined,
-  HeartOutlined,
-  LogoutOutlined,
-  ProfileOutlined,
-  TeamOutlined,
-} from "@ant-design/icons";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { forwardRef, lazy, Suspense, useEffect, useState, type ButtonHTMLAttributes } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import userStore from "../store/users-store";
-import { endSession } from "../lib/session";
+import type { User } from "../interfaces";
 import { Brand } from "../components/ui";
+
+// antd menus load on demand (prefetched on idle from App.tsx), keeping antd
+// out of the landing page's first bundle.
+const AccountMenu = lazy(() => import("./header-menus").then((m) => ({ default: m.AccountMenu })));
+const MobileMenu = lazy(() => import("./header-menus").then((m) => ({ default: m.MobileMenu })));
+
+/** The avatar pill that opens the account menu (also its loading stand-in). */
+export const AccountButton = forwardRef<HTMLButtonElement, { user: User; dark: boolean } & ButtonHTMLAttributes<HTMLButtonElement>>(
+  function AccountButton({ user, dark, className = "", ...rest }, ref) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        {...rest}
+        className={`flex h-10 cursor-pointer items-center gap-2 rounded-full border py-1 pl-1 pr-1 text-sm font-medium transition-colors lg:pr-3 ${
+          dark ? "border-paper/20 bg-paper/5 text-paper" : "border-line bg-card text-ink hover:border-ink/30"
+        } ${className}`}
+        aria-label="Account menu"
+      >
+        <span
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-full font-display text-[0.95rem] font-semibold leading-none"
+          style={{ background: user.isAdmin ? "#f0a43a" : "#1a3636", color: user.isAdmin ? "#102525" : "#f7f4ee" }}
+          aria-hidden
+        >
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+        <span className="hidden max-w-[9rem] truncate lg:inline">{user.name}</span>
+      </button>
+    );
+  },
+);
 
 /**
  * Over a dark hero (landing, 404) the header is clear ink, frosting over once
@@ -50,33 +70,11 @@ function useOverHero() {
 }
 
 export default function Header() {
-  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { currentUser } = userStore();
   const [open, setOpen] = useState(false);
+  const [menuWanted, setMenuWanted] = useState(false);
   const { dark, frosted } = useOverHero();
-
-  const logout = () => {
-    endSession();
-    navigate("/");
-  };
-
-  const items: MenuProps["items"] = currentUser
-    ? [
-        { key: "dash", label: "Organiser dashboard", icon: <DashboardOutlined />, onClick: () => navigate("/dashboard") },
-        { key: "donations", label: "My donations", icon: <HeartOutlined />, onClick: () => navigate("/donations") },
-        { key: "profile", label: "Profile", icon: <ProfileOutlined />, onClick: () => navigate("/profile") },
-        ...(currentUser.isAdmin
-          ? [
-              { type: "divider" as const },
-              { key: "analytics", label: "Admin analytics", icon: <BarChartOutlined />, onClick: () => navigate("/admin") },
-              { key: "manage", label: "Manage campaigns", icon: <FundOutlined />, onClick: () => navigate("/admin/campaigns") },
-              { key: "users", label: "Users", icon: <TeamOutlined />, onClick: () => navigate("/users") },
-            ]
-          : []),
-        { type: "divider" as const },
-        { key: "logout", label: "Sign out", icon: <LogoutOutlined />, danger: true, onClick: logout },
-      ]
-    : [];
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
     `relative rounded-full px-3.5 py-2 text-sm font-medium no-underline transition-colors duration-300 ${
@@ -116,32 +114,34 @@ export default function Header() {
                 {l.label}
               </a>
             ) : (
-              <NavLink key={l.to} to={l.to} end={l.end} className={navClass}>
+              <NavLink
+                key={l.to}
+                to={l.to}
+                end={l.end}
+                // /users lives under the admin area even though its path doesn't.
+                className={({ isActive }) => navClass({ isActive: isActive || (l.to === "/admin" && pathname === "/users") })}
+              >
                 {l.label}
               </NavLink>
             ),
           )}
         </nav>
         <div className="flex items-center gap-2">
-          <Link to="/campaigns/new" className="press hidden sm:block">
-            <Button type="primary" shape="round" className={dark ? "!bg-amber !text-ink hover:!bg-[#f5b85c]" : ""}>
-              Start a campaign
-            </Button>
+          {/* Over the hero, the hero's own CTA is in view; this one fades in once it scrolls away. */}
+          <Link
+            to="/campaigns/new"
+            className={`btn btn-sm hidden transition-[opacity,transform,background-color] duration-500 sm:inline-flex ${
+              dark ? "btn-amber pointer-events-none -translate-y-1 opacity-0" : "btn-ink"
+            }`}
+            aria-hidden={dark || undefined}
+            tabIndex={dark ? -1 : undefined}
+          >
+            Start a campaign
           </Link>
           {currentUser ? (
-            <Dropdown menu={{ items }} placement="bottomRight" trigger={["click"]}>
-              <button
-                className={`flex h-10 cursor-pointer items-center gap-2 rounded-full border py-1 pl-1 pr-1 text-sm font-medium transition-colors lg:pr-3 ${
-                  dark ? "border-paper/20 bg-paper/5 text-paper" : "border-line bg-card text-ink hover:border-ink/30"
-                }`}
-                aria-label="Account menu"
-              >
-                <Avatar size={30} style={{ background: currentUser.isAdmin ? "#f0a43a" : "#1a3636", color: currentUser.isAdmin ? "#102525" : "#f7f4ee" }}>
-                  {currentUser.name.charAt(0).toUpperCase()}
-                </Avatar>
-                <span className="hidden max-w-[9rem] truncate lg:inline">{currentUser.name}</span>
-              </button>
-            </Dropdown>
+            <Suspense fallback={<AccountButton user={currentUser} dark={dark} />}>
+              <AccountMenu user={currentUser} dark={dark} />
+            </Suspense>
           ) : (
             <Link
               to="/login"
@@ -158,46 +158,25 @@ export default function Header() {
             }`}
             aria-label="Open menu"
             aria-expanded={open}
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setMenuWanted(true);
+              setOpen(true);
+            }}
           >
             <span className="h-[1.5px] w-[18px] rounded bg-current" />
             <span className="h-[1.5px] w-[12px] translate-x-[3px] rounded bg-current" />
           </button>
         </div>
       </div>
-      <Drawer
-        open={open}
-        onClose={() => setOpen(false)}
-        placement="right"
-        width="min(100vw, 26rem)"
-        title={<Brand light compact />}
-        rootClassName="cf-menu"
-        destroyOnHidden
-        closeIcon={<span className="text-2xl leading-none text-paper">×</span>}
-      >
-        <nav className="flex h-full flex-col" aria-label="Mobile">
-          <ul className="m-0 list-none p-0">
-            {[{ to: "/", label: "Home" }, ...links, ...(currentUser ? [] : [{ to: "/login", label: "Sign in" }])].map((l, i) => (
-              <li key={l.to} className="cf-menu-item border-b border-paper/10" style={{ "--i": i } as CSSProperties}>
-                <Link
-                  to={l.to}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center justify-between py-4 font-display text-[2rem] font-semibold tracking-[-0.02em] text-paper no-underline"
-                >
-                  {l.label}
-                  <span className="font-sans text-base text-amber">→</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <Link to="/campaigns/new" onClick={() => setOpen(false)} className="mt-auto pt-8">
-            <Button type="primary" block shape="round" size="large" className="!h-14 !bg-amber !text-base !text-ink">
-              Start a campaign
-            </Button>
-          </Link>
-          <p className="mt-4 text-center text-xs text-paper/45">Portfolio demo · fictional campaigns · no real money</p>
-        </nav>
-      </Drawer>
+      {menuWanted && (
+        <Suspense fallback={null}>
+          <MobileMenu
+            open={open}
+            onClose={() => setOpen(false)}
+            links={[{ to: "/", label: "Home" }, ...links, ...(currentUser ? [] : [{ to: "/login", label: "Sign in" }])]}
+          />
+        </Suspense>
+      )}
     </header>
   );
 }

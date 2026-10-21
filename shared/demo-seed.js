@@ -22,18 +22,28 @@ export const CATEGORIES = [
 ];
 
 export const DEMO_ACCOUNTS = {
-  organiser: { email: "demo@captainfunds.app", password: "demo123", name: "Demo Organiser" },
-  admin: { email: "admin@captainfunds.app", password: "admin123", name: "Demo Admin" },
+  organiser: { email: "demo@captainfunds.app", password: "demo123", name: "Nadia Ferreira" },
+  admin: { email: "admin@captainfunds.app", password: "admin123", name: "Theo Marchetti" },
 };
 
 const DAY = 24 * 60 * 60 * 1000;
 
 const USERS = [
-  { key: "user-demo", ...DEMO_ACCOUNTS.organiser, isAdmin: false },
-  { key: "user-admin", ...DEMO_ACCOUNTS.admin, isAdmin: true },
+  { key: "user-demo", ...DEMO_ACCOUNTS.organiser, isAdmin: false, joinedDaysAgo: 74 },
+  { key: "user-admin", ...DEMO_ACCOUNTS.admin, isAdmin: true, joinedDaysAgo: 131 },
   // Second fictional organiser so the admin view has more than one owner.
   // No usable password: it exists only as campaign owner data.
-  { key: "user-mira", name: "Mira Okonjo (fictional)", email: "mira@demo.captainfunds.app", password: null, isAdmin: false },
+  { key: "user-mira", name: "Mira Okonjo", email: "mira@demo.captainfunds.app", password: null, isAdmin: false, joinedDaysAgo: 47 },
+];
+
+// A few seeded gifts were made by signed-in accounts (to campaigns they don't
+// run), so "My donations" and the admin users table have real history.
+const USER_GIFTS = [
+  { user: "user-demo", campaign: "camp-cedar-kennels", count: 2 },
+  { user: "user-demo", campaign: "camp-saltmarsh-cleanup", count: 1 },
+  { user: "user-mira", campaign: "camp-lantern-robotics", count: 2 },
+  { user: "user-mira", campaign: "camp-harbourline-fridge", count: 1 },
+  { user: "user-admin", campaign: "camp-northbank-clinic", count: 1 },
 ];
 
 const CAMPAIGNS = [
@@ -116,7 +126,7 @@ const CAMPAIGNS = [
     key: "camp-northbank-clinic",
     owner: "user-mira",
     title: "Northbank Free Clinic: Exam Room Refit",
-    organizer: "Northbank Community Health (fictional)",
+    organizer: "Northbank Community Health",
     category: "Healthcare",
     location: "Northbank (fictional)",
     target: 25000,
@@ -184,7 +194,7 @@ function hash(str) {
  * own storage (Mongo ObjectIds on the server, localStorage in the browser).
  */
 export function buildDemoSeed(now = Date.now()) {
-  const users = USERS.map((u) => ({ ...u }));
+  const users = USERS.map(({ joinedDaysAgo, ...u }) => ({ ...u, joinedAt: new Date(now - joinedDaysAgo * DAY) }));
 
   const campaigns = [];
   const donations = [];
@@ -240,6 +250,15 @@ export function buildDemoSeed(now = Date.now()) {
       createdAt,
       updatedAt: createdAt,
     });
+  }
+
+  for (const g of USER_GIFTS) {
+    const user = users.find((u) => u.key === g.user);
+    const picks = donations.filter((d) => d.campaignKey === g.campaign && !d.isAnonymous && !d.donorKey).slice(0, g.count);
+    for (const d of picks) {
+      d.donorKey = user.key;
+      d.donorName = user.name;
+    }
   }
 
   donations.sort((a, b) => b.createdAt - a.createdAt);

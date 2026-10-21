@@ -14,7 +14,13 @@ import GivingChart, { Sparkline } from "../../components/GivingChart";
 import CampaignCover from "../../components/CampaignCover";
 import { Avatar, Container, DashboardSkeleton, DeltaChip, EmptyState, PageHeader, ProgressBar, Stat } from "../../components/ui";
 
-const SOURCE_COLOR: Record<string, string> = { seed: "#2b4f4f", mock: "#f0a43a", stripe: "#a6d1ff", simulated: "#8a9592" };
+const DAY = 24 * 60 * 60 * 1000;
+const BANDS: Record<number, { label: string; color: string }> = {
+  0: { label: "Under $25", color: "#f6d7a4" },
+  25: { label: "$25 to $99", color: "#f0a43a" },
+  100: { label: "$100 to $249", color: "#b8701a" },
+  250: { label: "$250 and up", color: "#2b4f4f" },
+};
 
 function CategoryBars({ rows, total }: { rows: { category: string; raised: number; donations: number }[]; total: number }) {
   const { ref, inView } = useInView<HTMLUListElement>();
@@ -22,7 +28,7 @@ function CategoryBars({ rows, total }: { rows: { category: string; raised: numbe
   return (
     <ul ref={ref} className="mt-6 list-none space-y-4 p-0">
       {rows.map((r, i) => (
-        <li key={r.category} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 text-sm sm:grid-cols-[minmax(7rem,11.5rem)_1fr_auto]">
+        <li key={r.category} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 text-sm sm:grid-cols-[minmax(8rem,13.5rem)_1fr_auto]">
           <span className="flex items-center gap-2 truncate text-ink">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: paletteFor(r.category)[1] }} />
             <span className="truncate">{r.category}</span>
@@ -43,26 +49,27 @@ function CategoryBars({ rows, total }: { rows: { category: string; raised: numbe
   );
 }
 
-/** Share of money by source as a ring, drawn in when it scrolls into view. */
-function SourceRing({ rows, total }: { rows: { source: string; raised: number }[]; total: number }) {
+/** Share of money per band as a ring, drawn in when it scrolls into view. */
+function ShareRing({ rows, total }: { rows: { min: number; raised: number }[]; total: number }) {
   const { ref, inView } = useInView<SVGSVGElement>();
   const r = 62;
   const c = 2 * Math.PI * r;
   let start = 0;
   return (
-    <svg ref={ref} viewBox="0 0 160 160" className="h-44 w-44 shrink-0 -rotate-90" role="img" aria-label="Share of money by payment source">
+    <svg ref={ref} viewBox="0 0 160 160" className="h-44 w-44 shrink-0 -rotate-90" role="img" aria-label="Share of money by gift size">
       <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-paper-2)" strokeWidth="14" />
       {inView &&
         rows.map((s, i) => {
           const len = (s.raised / total) * c;
+          if (!len) return null;
           const seg = (
             <circle
-              key={s.source}
+              key={s.min}
               cx="80"
               cy="80"
               r={r}
               fill="none"
-              stroke={SOURCE_COLOR[s.source] || "#8a9592"}
+              stroke={BANDS[s.min]?.color || "#8a9592"}
               strokeWidth="14"
               strokeLinecap={len > 8 ? "butt" : "round"}
               strokeDashoffset={-start}
@@ -124,7 +131,9 @@ export default function AdminAnalyticsPage() {
 
   const raised7 = data ? periodDelta(data.daily, 7) : null;
   const gifts7 = data ? periodDelta(data.daily.map((d) => ({ amount: d.count })), 7) : null;
-  const sourceTotal = data ? Math.max(1, data.bySource.reduce((s, x) => s + x.raised, 0)) : 1;
+  const sizeTotal = data ? Math.max(1, data.bySize.reduce((s, x) => s + x.raised, 0)) : 1;
+  const oldestPending = data?.pending.reduce((t, p) => Math.min(t, new Date(p.createdAt).getTime()), Date.now());
+  const waitingDays = oldestPending ? Math.floor((Date.now() - oldestPending) / DAY) : 0;
 
   return (
     <Container className="py-10 sm:py-14">
@@ -139,7 +148,7 @@ export default function AdminAnalyticsPage() {
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-testid="admin-totals">
             <Stat
               accent
-              className="reveal col-span-2 sm:col-span-1"
+              className="reveal col-span-2 !pb-14 sm:col-span-1"
               label="Total raised"
               value={<CountUp value={data.totals.raised} format={formatMoney} />}
               hint={
@@ -147,7 +156,7 @@ export default function AdminAnalyticsPage() {
                   {formatMoney(data.totals.raisedLast30Days)} in 30 days <DeltaChip change={raised7?.change ?? null} dark />
                 </span>
               }
-              extra={<Sparkline values={data.daily.map((d) => d.amount)} className="pointer-events-none absolute right-5 top-4 h-8 w-24 opacity-80" />}
+              extra={<Sparkline values={data.daily.map((d) => d.amount)} className="pointer-events-none absolute inset-x-0 bottom-0 h-11 w-full opacity-80" />}
             />
             <Stat
               className="reveal"
@@ -173,7 +182,13 @@ export default function AdminAnalyticsPage() {
               className="reveal col-span-2 sm:col-span-1"
               label="Review queue"
               value={data.totals.campaigns.pending}
-              hint={`${data.totals.users} users · ${data.totals.organisers} organisers`}
+              hint={
+                data.pending.length
+                  ? waitingDays >= 1
+                    ? `Oldest waiting ${waitingDays} day${waitingDays === 1 ? "" : "s"}`
+                    : "Oldest sent in today"
+                  : "Nothing waiting"
+              }
             />
           </div>
 
@@ -204,7 +219,7 @@ export default function AdminAnalyticsPage() {
                   {data.pending.map((p) => (
                     <li key={p._id} className="rounded-[1.2rem] border border-line bg-paper p-4">
                       <div className="flex gap-3">
-                        <CampaignCover id={p._id} category={p.EventCategory || "Other"} className="h-12 w-12 shrink-0 rounded-xl" />
+                        <CampaignCover id={p._id} category={p.EventCategory || "Other"} title={p.title} className="h-12 w-12 shrink-0 rounded-xl" />
                         <div className="min-w-0">
                           <Link to={`/campaigns/${p._id}`} className="link-u font-semibold text-ink no-underline">
                             {p.title}
@@ -263,29 +278,29 @@ export default function AdminAnalyticsPage() {
             </Reveal>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_1fr]">
             <Reveal as="section" className="rounded-[1.6rem] border border-line bg-card p-5 sm:p-7">
               <h2 className="font-display text-xl font-semibold tracking-[-0.02em]">Raised by category</h2>
               <CategoryBars rows={data.byCategory} total={data.totals.raised} />
             </Reveal>
             <Reveal as="section" delay={100} className="rounded-[1.6rem] border border-line bg-card p-5 sm:p-7">
-              <h2 className="font-display text-xl font-semibold tracking-[-0.02em]">Where the money came from</h2>
-              <p className="mt-1 text-xs text-muted">Every source here is test or demo data. No real payments exist.</p>
-              <div className="mt-6 flex flex-col items-center gap-7">
+              <h2 className="font-display text-xl font-semibold tracking-[-0.02em]">Gifts by size</h2>
+              <p className="mt-1 text-xs text-muted">Share of the money raised in each gift band.</p>
+              <div className="mt-6 flex flex-col items-center gap-7 sm:flex-row sm:flex-wrap sm:items-center sm:gap-8">
                 <div className="relative">
-                  <SourceRing rows={data.bySource} total={sourceTotal} />
+                  <ShareRing rows={data.bySize} total={sizeTotal} />
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="tabular font-display text-2xl font-semibold leading-none tracking-[-0.02em]">{formatMoney(sourceTotal)}</span>
-                    <span className="mt-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-faint">test money</span>
+                    <span className="tabular font-display text-2xl font-semibold leading-none tracking-[-0.02em]">{formatMoney(data.totals.averageDonation)}</span>
+                    <span className="mt-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-faint">average gift</span>
                   </div>
                 </div>
-                <ul className="w-full list-none space-y-4 p-0">
-                  {data.bySource.map((s) => (
-                    <li key={s.source} className="flex items-center justify-between gap-3 text-sm">
+                <ul className="w-full min-w-[12rem] flex-1 list-none space-y-4 p-0 sm:w-auto">
+                  {data.bySize.map((s) => (
+                    <li key={s.min} className="flex items-center justify-between gap-3 text-sm">
                       <span className="flex items-center gap-2.5">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: SOURCE_COLOR[s.source] || "#8a9592" }} />
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: BANDS[s.min]?.color }} />
                         <span>
-                          <span className="font-medium text-ink">{SOURCE_LABEL[s.source] || s.source}</span>
+                          <span className="font-medium text-ink">{BANDS[s.min]?.label || `$${s.min}+`}</span>
                           <span className="block text-xs text-faint">
                             {formatNumber(s.donations)} gift{s.donations === 1 ? "" : "s"}
                           </span>
@@ -293,11 +308,20 @@ export default function AdminAnalyticsPage() {
                       </span>
                       <span className="tabular text-right">
                         <span className="font-semibold">{formatMoney(s.raised)}</span>
-                        <span className="block text-xs text-faint">{shareLabel(s.raised, sourceTotal)}</span>
+                        <span className="block text-xs text-faint">{shareLabel(s.raised, sizeTotal)}</span>
                       </span>
                     </li>
                   ))}
                 </ul>
+                <p className="w-full border-t border-line pt-4 text-xs leading-relaxed text-muted">
+                  All test data, no real payments:{" "}
+                  {data.bySource.map((s, i) => (
+                    <span key={s.source} className="whitespace-nowrap">
+                      {i > 0 && " · "}
+                      {SOURCE_LABEL[s.source] || s.source} ({formatNumber(s.donations)})
+                    </span>
+                  ))}
+                </p>
               </div>
             </Reveal>
           </div>
@@ -335,8 +359,12 @@ export default function AdminAnalyticsPage() {
                     <Avatar name={d.donorName} toneIndex={toneIndex(d.donorName, 6)} size={34} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-semibold">{d.donorName}</div>
-                      <div className="truncate text-xs text-muted">
-                        {d.campaignTitle} · {timeAgo(d.createdAt)} · {SOURCE_LABEL[d.source] || d.source}
+                      <div className="flex gap-1 text-xs text-muted">
+                        <span className="truncate">{d.campaignTitle}</span>
+                        <span className="shrink-0">
+                          · {timeAgo(d.createdAt)}
+                          {d.source !== "seed" && ` · ${SOURCE_LABEL[d.source] || d.source}`}
+                        </span>
                       </div>
                     </div>
                     <span className="tabular shrink-0 font-display text-base font-semibold">{formatMoney(d.amount)}</span>

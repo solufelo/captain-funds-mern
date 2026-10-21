@@ -41,7 +41,18 @@ function MiniOrbit() {
 }
 
 /** Split auth layout: night-sky brand panel (desktop), form on paper. */
-export default function AuthShell({ title, subtitle, children }: { title: string; subtitle: ReactNode; children: ReactNode }) {
+export default function AuthShell({
+  title,
+  subtitle,
+  aside = "Sign in to run a campaign, or to review and feature them as an admin.",
+  children,
+}: {
+  title: string;
+  subtitle: ReactNode;
+  /** One line under the brand panel's headline, specific to this page. */
+  aside?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[1fr_1.1fr]">
       <div className="grain relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-paper md:flex lg:p-14">
@@ -55,7 +66,7 @@ export default function AuthShell({ title, subtitle, children }: { title: string
             Every gift lands on <em className="font-normal italic text-amber">one ledger.</em>
           </h2>
           <p className="reveal mt-4 max-w-sm text-paper/60" style={{ "--d": "100ms" } as CSSProperties}>
-            Sign in to run a campaign, or to review and feature them as an admin.
+            {aside}
           </p>
         </div>
         <p className="relative text-xs text-paper/45">Portfolio demo · fictional campaigns · test payments only</p>

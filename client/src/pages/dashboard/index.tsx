@@ -17,8 +17,9 @@ export default function OrganiserDashboard() {
   const { data, loading, error } = useAsync(() => api.myDashboard(), []);
   const today = new Date().toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" });
 
+  // The header carries "Start a campaign" from 640px up; repeat it here only on phones.
   const newButton = (
-    <Link to="/campaigns/new" className="press">
+    <Link to="/campaigns/new" className="press sm:hidden">
       <Button type="primary" size="large" shape="round" icon={<PlusOutlined />}>
         Start a campaign
       </Button>
@@ -43,7 +44,16 @@ export default function OrganiserDashboard() {
       ) : loading && !data ? (
         <DashboardSkeleton label="Loading your dashboard" />
       ) : data && data.campaigns.length === 0 ? (
-        <EmptyState title="No campaigns yet" action={newButton}>
+        <EmptyState
+          title="No campaigns yet"
+          action={
+            <Link to="/campaigns/new" className="press">
+              <Button type="primary" size="large" shape="round" icon={<PlusOutlined />}>
+                Start a campaign
+              </Button>
+            </Link>
+          }
+        >
           Start one in a couple of minutes. An admin reviews it before it goes public.
         </EmptyState>
       ) : data ? (
@@ -51,7 +61,7 @@ export default function OrganiserDashboard() {
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-testid="organiser-totals">
             <Stat
               accent
-              className="reveal col-span-2 sm:col-span-1"
+              className="reveal col-span-2 !pb-14 sm:col-span-1"
               label="Total raised"
               value={<CountUp value={data.totals.raised} format={formatMoney} />}
               hint={
@@ -62,7 +72,7 @@ export default function OrganiserDashboard() {
                   of {formatMoney(data.totals.totalGoal)} in approved goals
                 </>
               }
-              extra={<Sparkline values={data.daily.map((d) => d.amount)} className="pointer-events-none absolute right-5 top-4 h-8 w-24 opacity-80" />}
+              extra={<Sparkline values={data.daily.map((d) => d.amount)} className="pointer-events-none absolute inset-x-0 bottom-0 h-11 w-full opacity-80" />}
             />
             <Stat
               className="reveal"
@@ -119,8 +129,9 @@ export default function OrganiserDashboard() {
                     <Avatar name={d.donorName} toneIndex={toneIndex(d.donorName, 6)} size={34} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-semibold text-ink">{d.donorName}</div>
-                      <div className="truncate text-xs text-muted">
-                        {d.campaignTitle} · {timeAgo(d.createdAt)}
+                      <div className="flex gap-1 text-xs text-muted">
+                        <span className="truncate">{d.campaignTitle}</span>
+                        <span className="shrink-0">· {timeAgo(d.createdAt)}</span>
                       </div>
                     </div>
                     <span className="tabular shrink-0 font-display text-base font-semibold">{formatMoney(d.amount)}</span>
@@ -144,7 +155,7 @@ export default function OrganiserDashboard() {
                     className="lift group flex flex-col gap-4 rounded-[1.4rem] border border-line bg-card p-3 pr-4 text-ink no-underline sm:flex-row sm:items-center sm:pr-6"
                   >
                     <div className="overflow-hidden rounded-[1rem] sm:w-44">
-                      <CampaignCover id={c._id} category={c.EventCategory} image={c.image} className="aspect-[16/9] w-full shrink-0" />
+                      <CampaignCover id={c._id} category={c.EventCategory} image={c.image} title={c.title} className="aspect-[16/9] w-full shrink-0" />
                     </div>
                     <div className="min-w-0 flex-1 px-1 sm:px-0">
                       <div className="flex flex-wrap items-center gap-2">

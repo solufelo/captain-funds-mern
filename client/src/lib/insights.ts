@@ -43,6 +43,23 @@ export function giftImpact(raised: number, target: number, amount: number): Gift
   };
 }
 
+/**
+ * Before/after "funded" labels for a gift preview that never read "44% to 44%":
+ * whole percents, one decimal when those round the same, null when even that
+ * can't show the move (a tiny gift on a huge goal), so the caller says it in dollars.
+ */
+export function impactPercents(raised: number, target: number, amount: number): [string, string] | null {
+  if (!target || target <= 0 || !(amount > 0)) return null;
+  const before = (raised / target) * 100;
+  const after = ((raised + amount) / target) * 100;
+  for (const digits of [0, 1]) {
+    const a = before.toFixed(digits);
+    const b = after.toFixed(digits);
+    if (a !== b) return [`${a}%`, `${b}%`];
+  }
+  return null;
+}
+
 export interface PeriodDelta {
   current: number;
   previous: number;
@@ -135,17 +152,6 @@ export function orbitPoint(angle: number, radius: number, tilt = 0.36) {
   const y = Math.sin(angle) * radius * tilt;
   const depth = Math.sin(angle);
   return { x, y, depth, scale: 0.8 + 0.2 * ((depth + 1) / 2) };
-}
-
-/** SVG path for a sparkline through `values`, scaled into a w x h box (0 at the bottom). */
-export function sparkPath(values: number[], w: number, h: number, pad = 2): { line: string; area: string } {
-  if (!values.length) return { line: "", area: "" };
-  const max = Math.max(...values, 1);
-  const step = values.length > 1 ? (w - pad * 2) / (values.length - 1) : 0;
-  const pts = values.map((v, i) => [pad + i * step, h - pad - (Math.max(0, v) / max) * (h - pad * 2)] as const);
-  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-  const last = pts[pts.length - 1][0].toFixed(1);
-  return { line, area: `${line} L${last} ${h} L${pad} ${h} Z` };
 }
 
 /**

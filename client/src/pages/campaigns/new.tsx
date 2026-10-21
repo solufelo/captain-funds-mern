@@ -51,7 +51,7 @@ export default function NewCampaignPage() {
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="kicker mb-3 text-muted">Live preview</div>
           <div className="overflow-hidden rounded-3xl border border-line bg-card">
-            <CampaignCover id={title || "preview"} category={category} image={image} className="aspect-[16/10]" />
+            <CampaignCover id={title || "preview"} category={category} image={image} title={title || ""} className="aspect-[16/10]" />
             <div className="p-5">
               <div className="text-xs text-muted">{organizer || "Your organisation"}</div>
               <div className="mt-1 font-display text-xl font-semibold leading-snug">{title || "Your campaign title"}</div>
@@ -63,7 +63,7 @@ export default function NewCampaignPage() {
               </div>
             </div>
           </div>
-          <p className="mt-4 text-sm text-muted">No photo? Each campaign gets generated cover art based on its category.</p>
+          <p className="mt-4 text-sm text-muted">No photo? Each campaign gets its own illustration, drawn from its title and category.</p>
         </aside>
       </div>
     </Container>

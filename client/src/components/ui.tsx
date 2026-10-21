@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { Campaign } from "../interfaces";
 import { campaignState, STATE_LABEL, type CampaignState } from "../lib/format";
 import { formatChange } from "../lib/insights";
-import helmet from "../assets/helmet-96.png";
+import helmet from "../assets/helmet-96.webp";
 
 export function ProgressBar({
   percent,
@@ -95,9 +95,9 @@ export function Brand({ to = "/", light = false, compact = false }: { to?: strin
       <img
         src={helmet}
         alt=""
-        width={32}
+        width={29}
         height={32}
-        className={`${compact ? "h-7 w-7" : "h-8 w-8"} transition-transform duration-700 ease-[var(--ease-spring)] group-hover:-rotate-[14deg]`}
+        className={`${compact ? "h-7" : "h-8"} w-auto transition-transform duration-700 ease-[var(--ease-spring)] group-hover:-rotate-[14deg]`}
       />
       <span className={`font-display ${compact ? "text-[1.18rem]" : "text-[1.32rem]"} font-semibold leading-none tracking-[-0.02em] ${light ? "text-paper" : "text-ink"}`}>
         Captain&nbsp;Funds
@@ -257,14 +257,15 @@ export function DeltaChip({ change, dark = false }: { change: number | null; dar
   const up = (change || 0) > 0.005;
   const down = (change || 0) < -0.005;
   return (
-    <span
-      className={`tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-        up ? (dark ? "bg-[#4fbf8a]/15 text-[#7fd9ad]" : "bg-moss/10 text-moss") : down ? "bg-rose/10 text-rose" : "bg-paper-2 text-muted"
-      }`}
-      title="Last 7 days compared with the 7 days before"
-    >
-      {up ? "↑" : down ? "↓" : "→"} {label}
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Last 7 days compared with the 7 days before">
+      <span
+        className={`tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+          up ? (dark ? "bg-[#4fbf8a]/15 text-[#7fd9ad]" : "bg-moss/10 text-moss") : down ? "bg-rose/10 text-rose" : "bg-paper-2 text-muted"
+        }`}
+      >
+        {up ? "↑" : down ? "↓" : "→"} {label}
+      </span>
+      <span className={`text-xs ${dark ? "text-paper/55" : "text-faint"}`}>this week vs last</span>
     </span>
   );
 }
-

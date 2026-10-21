@@ -4,7 +4,7 @@ import { ArrowLeftOutlined, CheckOutlined, EnvironmentOutlined, HeartFilled, Lin
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import api from "../../lib/api";
 import { useAsync, useCampaignLive } from "../../lib/hooks";
-import { daysLeftLabel, formatDate, formatMoney, percentFunded, timeAgo } from "../../lib/format";
+import { daysLeft, formatDate, formatMoney, percentFunded, timeAgo } from "../../lib/format";
 import { errorMessage } from "../../lib/errors";
 import { toneIndex } from "../../lib/insights";
 import { CountUp } from "../../lib/motion";
@@ -85,6 +85,7 @@ export default function CampaignDetailPage() {
   const { campaign: c, recentDonations, canDonate, viewerIsOwner } = data;
   const pct = percentFunded(c);
   const remaining = Math.max(0, c.EventTargetAmount - c.EventCurrentAmount);
+  const left = daysLeft(c.endDate);
   const supporters = allSupporters ? recentDonations : recentDonations.slice(0, SHOWN);
 
   const copyLink = async () => {
@@ -99,9 +100,13 @@ export default function CampaignDetailPage() {
 
   return (
     <Container className="pb-32 pt-6 md:pt-10 lg:pb-12">
-      <Link to="/campaigns" className="group inline-flex items-center gap-2 text-sm font-medium text-muted no-underline hover:text-ink">
-        <ArrowLeftOutlined className="transition-transform duration-300 group-hover:-translate-x-1" /> All campaigns
-      </Link>
+      {/* The demo stamp sits on the back-link row, where it can never wrap onto a line of its own. */}
+      <div className="flex items-center justify-between gap-4">
+        <Link to="/campaigns" className="group inline-flex items-center gap-2 text-sm font-medium text-muted no-underline hover:text-ink">
+          <ArrowLeftOutlined className="transition-transform duration-300 group-hover:-translate-x-1" /> All campaigns
+        </Link>
+        {c.isDemo && <DemoTag className="text-faint" />}
+      </div>
 
       {notice && <Alert className="mt-4" type={notice.type} showIcon message={notice.text} closable onClose={() => setNotice(null)} />}
       {!c.isApproved && !c.isRejected && (
@@ -135,17 +140,19 @@ export default function CampaignDetailPage() {
           </div>
           <div className="reveal mt-8 flex flex-wrap items-center gap-2 text-sm text-muted" style={{ "--d": "80ms" } as CSSProperties}>
             <span className="rounded-full bg-paper-2 px-3 py-1 font-medium text-ink">{c.EventCategory}</span>
-            <span className="inline-flex items-center gap-1.5">
-              <EnvironmentOutlined /> {c.location}
-            </span>
             <StateBadge campaign={c} />
-            {c.isDemo && <DemoTag className="text-faint" />}
           </div>
           <h1 className="reveal mt-5 font-display text-step-4 font-semibold display-tight text-ink" style={{ "--d": "140ms" } as CSSProperties}>
             {c.title}
           </h1>
           <p className="reveal mt-4 text-muted" style={{ "--d": "200ms" } as CSSProperties}>
-            Organised by <strong className="font-semibold text-ink">{c.organizer}</strong> · started {formatDate(c.createdAt || c.endDate)}
+            Organised by <strong className="font-semibold text-ink">{c.organizer}</strong>
+            <span className="mt-1 flex flex-wrap gap-x-3 text-sm">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                <EnvironmentOutlined /> {c.location}
+              </span>
+              <span className="whitespace-nowrap">Started {formatDate(c.createdAt || c.endDate)}</span>
+            </span>
           </p>
 
           <div className="story reveal mt-10 max-w-[38rem] text-step-1 leading-[1.7] text-ink/90" style={{ "--d": "260ms" } as CSSProperties}>
@@ -157,7 +164,11 @@ export default function CampaignDetailPage() {
           <section className="mt-16">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="font-display text-step-2 font-semibold tracking-[-0.02em]">Recent supporters</h2>
-              {recentDonations.length > 0 && <span className="text-sm text-muted">Latest {recentDonations.length}</span>}
+              {recentDonations.length > 0 && (
+                <span className="tabular text-sm text-muted">
+                  Latest {recentDonations.length} of {c.donationCount ?? recentDonations.length} gifts
+                </span>
+              )}
             </div>
             {recentDonations.length ? (
               <>
@@ -191,7 +202,7 @@ export default function CampaignDetailPage() {
                     className="press mt-4 inline-flex h-11 cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-5 text-sm font-semibold text-ink transition-colors hover:border-ink/40"
                     aria-expanded={allSupporters}
                   >
-                    {allSupporters ? "Show fewer" : `Show all ${recentDonations.length}`}
+                    {allSupporters ? "Show fewer" : `Show ${recentDonations.length - SHOWN} more`}
                     <span className={`inline-block transition-transform duration-300 ${allSupporters ? "rotate-180" : ""}`}>↓</span>
                   </button>
                 )}
@@ -231,8 +242,8 @@ export default function CampaignDetailPage() {
                 </dd>
               </div>
               <div className="px-1">
-                <dt className="text-xs text-muted">Time</dt>
-                <dd className="mt-1.5 text-sm font-semibold leading-6">{daysLeftLabel(c.endDate)}</dd>
+                <dt className="text-xs text-muted">{left > 1 ? "Days left" : "Time"}</dt>
+                <dd className="mt-1 font-display text-xl font-semibold">{left > 1 ? left : left === 1 ? "1 day" : left === 0 ? "Last day" : "Ended"}</dd>
               </div>
             </dl>
             <Button

@@ -3,7 +3,7 @@ import type { Campaign } from "../interfaces";
 import { daysLeftLabel, formatMoney, percentFunded } from "../lib/format";
 import { paletteFor } from "../lib/palette";
 import CampaignCover from "./CampaignCover";
-import { DemoTag, ProgressBar, StateBadge } from "./ui";
+import { ProgressBar, StateBadge } from "./ui";
 
 export default function CampaignCard({
   campaign,
@@ -47,8 +47,9 @@ export default function CampaignCard({
       </div>
       <div className={`flex flex-1 flex-col ${compact ? "p-5" : "p-5 sm:p-6"}`}>
         <div className="flex items-center justify-between gap-2 text-xs text-muted">
+          {/* The site-wide demo banner already says it's fictional; no per-card badge. */}
           <span className="truncate">{campaign.organizer}</span>
-          {campaign.isDemo ? <DemoTag className="shrink-0 text-faint" /> : showState && <StateBadge campaign={campaign} />}
+          {showState && <StateBadge campaign={campaign} />}
         </div>
         <h3 className={`mt-2 font-display font-semibold leading-[1.15] tracking-[-0.02em] ${compact ? "text-xl" : "text-[1.4rem]"}`}>
           {campaign.title}

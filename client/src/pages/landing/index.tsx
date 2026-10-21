@@ -1,6 +1,4 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Button } from "antd";
-import { ArrowRightOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../lib/api";
 import { useAppConfig, useAsync } from "../../lib/hooks";
@@ -114,7 +112,7 @@ function FeatureLead({ c }: { c: Campaign }) {
         </div>
         <h3 className="mt-4 max-w-md font-display text-step-3 font-semibold leading-[1.02] text-paper">{c.title}</h3>
         <p className="mt-2 text-sm text-paper/70">
-          {c.organizer} · {c.location}
+          {c.organizer} · <span className="whitespace-nowrap">{c.location}</span>
         </p>
         <div className="mt-6 max-w-md">
           <ProgressBar percent={pct} size="md" track="dark" />
@@ -148,12 +146,25 @@ export default function LandingPage() {
   };
 
   const lines = ["Small causes", "deserve a proper"];
+  // Phones and tablets get these right under the headline (above the orbit);
+  // desktop keeps them beside it, under the description.
+  const heroCtas = (
+    <>
+      <Link to="/campaigns" className="btn btn-amber w-full sm:w-auto">
+        Browse campaigns <span className="btn-arrow" aria-hidden>→</span>
+      </Link>
+      <Link to="/campaigns/new" className="btn btn-ghost w-full sm:w-auto">
+        Start a campaign
+      </Link>
+    </>
+  );
 
   return (
     <>
       {/* Hero: the ledger and its campaigns, in orbit */}
       <section className="grain relative -mt-[65px] overflow-hidden bg-ink pt-[65px] text-paper" data-hero>
-        <div className="parallax absolute -inset-6 [mask-image:linear-gradient(90deg,rgba(0,0,0,0.3),rgba(0,0,0,0.3)_38%,#000_62%)]">
+        {/* Starts below the header so no star sits behind its controls. */}
+        <div className="parallax absolute -inset-x-6 -bottom-6 top-24 [mask-image:linear-gradient(90deg,rgba(0,0,0,0.3),rgba(0,0,0,0.3)_38%,#000_62%)]">
           <Starfield />
         </div>
         <div
@@ -161,7 +172,7 @@ export default function LandingPage() {
           style={{ background: "radial-gradient(circle, rgba(240,164,58,0.18), rgba(240,164,58,0) 65%)" }}
           aria-hidden
         />
-        <Container className="relative grid gap-x-4 gap-y-8 pb-12 pt-10 sm:pt-16 lg:grid-cols-[1.12fr_1fr] lg:grid-rows-[auto_1fr] lg:pb-12 lg:pt-14">
+        <Container className="relative grid gap-x-4 gap-y-4 pb-12 sm:gap-y-8 pt-10 sm:pt-16 lg:grid-cols-[1.12fr_1fr] lg:grid-rows-[auto_1fr] lg:pb-12 lg:pt-14">
           <div className="relative z-10 lg:self-end">
             <div className="reveal kicker flex items-center gap-3 text-amber" style={{ "--d": "60ms" } as CSSProperties}>
               <span className="h-px w-8 bg-amber/60" />
@@ -179,6 +190,9 @@ export default function LandingPage() {
                 </span>
               </span>
             </h1>
+            <div className="reveal mt-8 flex flex-col gap-3 sm:flex-row lg:hidden" style={{ "--d": "480ms" } as CSSProperties}>
+              {heroCtas}
+            </div>
           </div>
           <div className="relative -mx-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:-ml-6 lg:-mr-12 lg:self-center">
             <OrbitHero campaigns={list} totalRaised={s?.totalRaised} gifts={s?.recentGifts} />
@@ -188,24 +202,8 @@ export default function LandingPage() {
               Every planet here is a live campaign, and its ring fills as gifts land. Organisers launch, admins review,
               supporters give, and one ledger keeps every total honest.
             </p>
-            <div className="reveal mt-9 flex flex-col gap-3 sm:flex-row" style={{ "--d": "580ms" } as CSSProperties}>
-              <Link to="/campaigns" className="press">
-                <Button
-                  type="primary"
-                  size="large"
-                  shape="round"
-                  icon={<ArrowRightOutlined />}
-                  iconPosition="end"
-                  className="!h-[3.25rem] w-full !bg-amber !px-7 !text-ink hover:!bg-[#f5b85c] sm:w-auto"
-                >
-                  Browse campaigns
-                </Button>
-              </Link>
-              <Link to="/campaigns/new" className="press">
-                <Button size="large" shape="round" ghost className="!h-[3.25rem] w-full !border-paper/30 !px-7 !text-paper hover:!border-paper sm:w-auto">
-                  Start a campaign
-                </Button>
-              </Link>
+            <div className="reveal mt-9 hidden gap-3 lg:flex" style={{ "--d": "580ms" } as CSSProperties}>
+              {heroCtas}
             </div>
             <dl
               className="reveal tabular mt-12 grid max-w-[30rem] grid-cols-3 gap-4 border-t border-paper/15 pt-6"
@@ -286,7 +284,7 @@ export default function LandingPage() {
               <Reveal className="h-full">
                 <FeatureLead c={list[0]} />
               </Reveal>
-              <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-1">
+              <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:scroll-px-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-1">
                 {list.slice(1, 3).map((c, i) => (
                   <Reveal key={c._id} delay={120 + i * 120} className="w-[82%] shrink-0 snap-start sm:w-auto">
                     <CampaignCard campaign={c} compact />
@@ -321,8 +319,8 @@ export default function LandingPage() {
                 line: "Give in under a minute.",
                 points: ["Browse and search, no account", "Give as a guest or signed in", "Anonymous gifts hide your name", "A history of your own gifts"],
                 cta: (
-                  <Link to="/campaigns" className="press inline-block">
-                    <Button shape="round" size="large">Browse as a guest</Button>
+                  <Link to="/campaigns" className="btn btn-line h-12">
+                    Browse as a guest
                   </Link>
                 ),
               },
@@ -331,9 +329,9 @@ export default function LandingPage() {
                 line: "See every gift land.",
                 points: ["Start a campaign in one form", "Review status at a glance", "Raised, gifts and average gift", "A 30-day giving chart"],
                 cta: config.demoAccounts ? (
-                  <Button shape="round" size="large" type="primary" className="press" onClick={() => tryAs("user")}>
+                  <button type="button" className="btn btn-ink h-12" onClick={() => tryAs("user")}>
                     Try as organiser
-                  </Button>
+                  </button>
                 ) : null,
               },
               {
@@ -341,9 +339,9 @@ export default function LandingPage() {
                 line: "Keep the platform honest.",
                 points: ["Approve or reject with a reason", "Feature, edit or retire campaigns", "Analytics by day, category, source", "Activate or remove users"],
                 cta: config.demoAccounts ? (
-                  <Button shape="round" size="large" className="press" onClick={() => tryAs("admin")}>
+                  <button type="button" className="btn btn-line h-12" onClick={() => tryAs("admin")}>
                     Try as admin
-                  </Button>
+                  </button>
                 ) : null,
               },
             ].map((r, i) => (

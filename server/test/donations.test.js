@@ -57,10 +57,14 @@ describe("mock donations", () => {
 
   test("signed-in donors see their own history", async () => {
     const token = await tokenFor(app, DEMO_ACCOUNTS.organiser);
+    // The seed already gives the demo organiser a few gifts of their own.
+    const before = (await api().get("/api/donations/mine").set("Authorization", `Bearer ${token}`)).body.stats;
+    assert.ok(before.totalDonations > 0, "seeded history");
     await api().post("/api/donations/checkout").set("Authorization", `Bearer ${token}`).send({ campaignId: liveId, amount: 25 });
     const res = await api().get("/api/donations/mine").set("Authorization", `Bearer ${token}`);
     assert.equal(res.status, 200);
-    assert.equal(res.body.stats.totalAmount, 25);
+    assert.equal(res.body.stats.totalAmount, before.totalAmount + 25);
+    assert.equal(res.body.stats.totalDonations, before.totalDonations + 1);
     assert.equal(res.body.donations[0].campaignTitle, "Harbourline Community Fridge");
     assert.equal((await api().get("/api/donations/mine")).status, 401);
   });

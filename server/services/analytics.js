@@ -3,6 +3,8 @@ import Donation from "../models/donation-model.js";
 import User from "../models/user-model.js";
 
 const DAY = 24 * 60 * 60 * 1000;
+/** Lower bounds of the gift-size bands (dollars); the last band is open-ended. */
+export const GIFT_BANDS = [0, 25, 100, 250];
 const TZ = process.env.REPORT_TIMEZONE || "America/Toronto";
 
 function dayKey(date) {
@@ -40,11 +42,22 @@ export async function dailySeries(match, days = 30) {
 export async function adminAnalytics() {
   const now = new Date();
   const completed = { paymentStatus: "completed" };
-  const [ledger, bySource, byCategory, campaigns, users, recent, daily] = await Promise.all([
+  const [ledger, bySource, bySize, byCategory, campaigns, users, recent, daily] = await Promise.all([
     Donation.aggregate([{ $match: completed }, { $group: { _id: null, raised: { $sum: "$amount" }, n: { $sum: 1 } } }]),
     Donation.aggregate([
       { $match: completed },
       { $group: { _id: "$paymentProvider", raised: { $sum: "$amount" }, n: { $sum: 1 } } },
+    ]),
+    Donation.aggregate([
+      { $match: completed },
+      {
+        $bucket: {
+          groupBy: "$amount",
+          boundaries: GIFT_BANDS,
+          default: GIFT_BANDS.at(-1),
+          output: { raised: { $sum: "$amount" }, n: { $sum: 1 } },
+        },
+      },
     ]),
     Donation.aggregate([
       { $match: completed },
@@ -85,6 +98,10 @@ export async function adminAnalytics() {
     daily,
     byCategory: byCategory.map((c) => ({ category: c._id, raised: c.raised, donations: c.n })),
     bySource: bySource.map((s) => ({ source: s._id, raised: s.raised, donations: s.n })),
+    bySize: GIFT_BANDS.map((min) => {
+      const b = bySize.find((x) => x._id === min);
+      return { min, raised: b?.raised || 0, donations: b?.n || 0 };
+    }),
     topCampaigns: campaigns
       .filter(isPublic)
       .sort((a, b) => b.EventCurrentAmount - a.EventCurrentAmount)

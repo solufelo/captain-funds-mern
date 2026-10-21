@@ -22,6 +22,7 @@ import type {
 } from "../interfaces";
 import { API_BASE_URL, isDemoMode } from "./config";
 import { demoApi } from "./demoStore";
+import { ApiError } from "./errors";
 import { getToken, onUnauthorized } from "./session";
 
 const http = axios.create({ baseURL: API_BASE_URL, headers: { "Content-Type": "application/json" } });
@@ -84,6 +85,9 @@ export const api = {
 
   async getCampaign(id: string): Promise<CampaignDetail> {
     if (demo) return demoApi.getCampaign(id, getToken());
+    // The API only knows Mongo ids; answer anything else here instead of
+    // making a request that is certain to 404 (and log a console error).
+    if (!/^[a-f\d]{24}$/i.test(id)) throw new ApiError("Campaign not found.", 404);
     const { data } = await http.get(`/campaigns/${encodeURIComponent(id)}`);
     return data;
   },

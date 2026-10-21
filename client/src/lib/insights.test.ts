@@ -6,11 +6,11 @@ import {
   easeOutExpo,
   formatChange,
   giftImpact,
+  impactPercents,
   orbitLayout,
   orbitPoint,
   periodDelta,
   shareLabel,
-  sparkPath,
   toneIndex,
   tweenValue,
 } from "./insights.ts";
@@ -40,6 +40,22 @@ describe("count-up tween", () => {
   test("counts down as well as up", () => {
     const mid = tweenValue(500, 100, 300, 1000);
     assert.ok(mid < 500 && mid > 100);
+  });
+});
+
+describe("gift impact labels", () => {
+  test("whole percents when the gift moves the rounded number", () => {
+    assert.deepEqual(impactPercents(6885, 8500, 50), ["81%", "82%"]);
+  });
+  test("one decimal when whole percents would read the same", () => {
+    // $25 on a $20k goal at $8,825: 44.1% -> 44.3%, never "44% to 44%".
+    assert.deepEqual(impactPercents(8825, 20000, 25), ["44.1%", "44.3%"]);
+  });
+  test("null when even a decimal can't show it, or there is nothing to show", () => {
+    assert.equal(impactPercents(500000, 1000000, 1), null);
+    assert.equal(impactPercents(100, 0, 50), null);
+    assert.equal(impactPercents(100, 1000, 0), null);
+    assert.equal(impactPercents(100, 1000, Number.NaN), null);
   });
 });
 
@@ -158,21 +174,6 @@ describe("tone index", () => {
       assert.ok(i >= 0 && i < 6);
     }
     assert.equal(toneIndex("x", 0), 0);
-  });
-});
-
-describe("sparkline path", () => {
-  test("scales into the box with the peak at the top", () => {
-    const { line, area } = sparkPath([0, 5, 10], 100, 40, 0);
-    assert.equal(line, "M0.0 40.0 L50.0 20.0 L100.0 0.0");
-    assert.ok(area.startsWith(line) && area.endsWith("Z"));
-  });
-
-  test("handles empty, flat and negative input", () => {
-    assert.deepEqual(sparkPath([], 100, 40), { line: "", area: "" });
-    assert.ok(!sparkPath([0, 0, 0], 100, 40).line.includes("NaN"));
-    assert.ok(!sparkPath([7], 100, 40).line.includes("NaN"));
-    assert.ok(!sparkPath([-5, 3], 100, 40).line.includes("NaN"));
   });
 });
 

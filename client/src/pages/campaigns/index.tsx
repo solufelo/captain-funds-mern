@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Input, Select } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, SearchOutlined } from "@ant-design/icons";
 import { useSearchParams } from "react-router-dom";
 import { CATEGORIES } from "../../../../shared/demo-seed.js";
 import api from "../../lib/api";
@@ -58,7 +58,13 @@ export default function CampaignsPage() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <Input
-              allowClear
+              allowClear={{
+                clearIcon: (
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-paper-2 text-[0.7rem] text-ink-3 transition-colors hover:bg-ink hover:text-paper">
+                    <CloseOutlined />
+                  </span>
+                ),
+              }}
               size="large"
               prefix={<SearchOutlined className="text-faint" />}
               placeholder="Search by name, organiser or place"
@@ -73,12 +79,13 @@ export default function CampaignsPage() {
               onChange={(v) => update({ sort: v === "featured" ? "" : v })}
               options={SORTS}
               aria-label="Sort campaigns"
-              className="w-full shrink-0 sm:w-52"
+              className="cf-sort w-full shrink-0 sm:w-52"
+              menuItemSelectedIcon={<CheckOutlined />}
               popupMatchSelectWidth={false}
             />
           </div>
           <div
-            className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pr-14 [mask-image:linear-gradient(90deg,#000_calc(100%-3.5rem),transparent)] sm:-mx-1 sm:px-1 sm:pr-14"
+            className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pr-14 [mask-image:linear-gradient(90deg,#000_calc(100%-3.5rem),transparent)] sm:-mx-1 sm:px-1 sm:pr-14 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:[mask-image:none]"
             role="tablist"
             aria-label="Categories"
           >

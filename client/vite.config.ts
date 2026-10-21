@@ -5,8 +5,13 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
   const apiTarget = env.API_PROXY_TARGET || "http://localhost:4100";
+  // Link scrapers need absolute og:image URLs. Netlify sets URL and Vercel
+  // VERCEL_PROJECT_PRODUCTION_URL at build time (loadEnv with an empty prefix
+  // also reads process.env); VITE_SITE_URL overrides both.
+  const vercel = env.VERCEL_PROJECT_PRODUCTION_URL;
+  const siteUrl = (env.VITE_SITE_URL || env.URL || (vercel ? `https://${vercel}` : "")).replace(/\/$/, "");
   return {
-    plugins: [react()],
+    plugins: [react(), { name: "site-url", transformIndexHtml: (html: string) => html.replaceAll("__SITE_URL__", siteUrl) }],
     server: {
       port: Number(env.PORT) || 4150,
       strictPort: true,

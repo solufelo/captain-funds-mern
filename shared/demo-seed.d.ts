@@ -11,6 +11,7 @@ export interface SeedUser {
   email: string;
   password: string | null;
   isAdmin: boolean;
+  joinedAt: Date;
 }
 
 export interface SeedCampaign {
@@ -45,6 +46,8 @@ export interface SeedDonation {
   message: string;
   isAnonymous: boolean;
   createdAt: Date;
+  /** Seed user who made this gift while signed in, if any. */
+  donorKey?: string;
 }
 
 export declare function buildDemoSeed(now?: number): {

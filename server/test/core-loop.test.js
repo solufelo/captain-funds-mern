@@ -48,6 +48,10 @@ test("the full fundraising loop keeps every total in agreement", async () => {
   assert.equal(analytics.totals.donations, analyticsBefore.totals.donations + 2);
   const mock = analytics.bySource.find((s) => s.source === "mock");
   assert.equal(mock.raised, 75);
+  // Gift-size bands partition the ledger: every dollar and gift lands in exactly one.
+  assert.deepEqual(analytics.bySize.map((b) => b.min), [0, 25, 100, 250]);
+  assert.equal(analytics.bySize.reduce((s, b) => s + b.raised, 0), analytics.totals.raised);
+  assert.equal(analytics.bySize.reduce((s, b) => s + b.donations, 0), analytics.totals.donations);
   assert.ok(!analytics.pending.some((p) => String(p._id) === id));
   assert.equal(analytics.daily.length, 30);
 

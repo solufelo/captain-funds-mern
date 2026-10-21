@@ -1,13 +1,14 @@
-import { Button } from "antd";
 import { Link } from "react-router-dom";
-import helmet from "../assets/helmet-480.png";
+import helmet from "../assets/helmet-288.webp";
 import { Starfield } from "../components/Space";
 
 /** 404: a helmet drifting past a planet-shaped zero. */
 export default function NotFound() {
   return (
     <section className="grain relative -mb-24 -mt-[65px] overflow-hidden bg-ink pt-[65px] text-paper" data-hero>
-      <Starfield count={110} seed={404} />
+      <div className="absolute inset-x-0 bottom-0 top-24">
+        <Starfield count={100} seed={404} />
+      </div>
       <div className="relative mx-auto flex min-h-[calc(100svh-8rem)] max-w-6xl flex-col items-center justify-center px-4 py-20 text-center sm:px-6">
         <div className="relative flex items-center justify-center font-display font-semibold leading-none tracking-[-0.06em] text-paper" aria-hidden>
           <span className="reveal text-[clamp(7rem,26vw,17rem)]">4</span>
@@ -27,7 +28,7 @@ export default function NotFound() {
           <img
             src={helmet}
             alt=""
-            className="drift absolute -right-[12%] -top-[18%] w-[clamp(4rem,12vw,7.5rem)] drop-shadow-[0_20px_30px_rgba(0,0,0,0.45)]"
+            className="drift absolute -right-[19%] -top-[30%] w-[clamp(3.6rem,10vw,6.5rem)] drop-shadow-[0_20px_30px_rgba(0,0,0,0.45)]"
           />
         </div>
         <h1 className="reveal mt-10 font-display text-step-3 font-semibold display-tight text-paper" style={{ animationDelay: "320ms" }}>
@@ -37,15 +38,11 @@ export default function NotFound() {
           The link may be old, or the campaign moved. The rest of the platform is right where you left it.
         </p>
         <div className="reveal mt-9 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "480ms" }}>
-          <Link to="/" className="press">
-            <Button type="primary" size="large" shape="round" className="!h-12 w-full !bg-amber !px-7 !text-ink sm:w-auto">
-              Back to the home page
-            </Button>
+          <Link to="/" className="btn btn-amber h-12">
+            Back to the home page
           </Link>
-          <Link to="/campaigns" className="press">
-            <Button size="large" shape="round" ghost className="!h-12 w-full !border-paper/30 !px-7 !text-paper sm:w-auto">
-              Browse campaigns
-            </Button>
+          <Link to="/campaigns" className="btn btn-ghost h-12">
+            Browse campaigns
           </Link>
         </div>
         <p className="kicker mt-10 text-paper/50">Error 404 · page not found</p>

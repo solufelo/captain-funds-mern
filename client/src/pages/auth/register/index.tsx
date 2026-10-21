@@ -34,6 +34,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Create your account"
+      aside="One account runs your campaigns and keeps a history of every gift you make."
       subtitle={
         <>
           Already have one? <Link to="/login">Sign in</Link>

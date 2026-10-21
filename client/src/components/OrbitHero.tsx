@@ -343,7 +343,7 @@ export default function OrbitHero({ campaigns, totalRaised, gifts = [] }: { camp
                 {active + 1} / {items.length}
               </span>
             </div>
-            <div className="mt-2 font-display text-step-2 font-semibold leading-tight">{current.title}</div>
+            <div className="mt-2 text-balance font-display text-step-2 font-semibold leading-tight">{current.title}</div>
             <div className="mt-4">
               <ProgressBar percent={pct} size="md" />
             </div>

@@ -29,7 +29,7 @@ On the landing page every live campaign is a planet orbiting the ledger total (r
 - See your own giving history
 
 **As an admin**
-- Analytics: raised (all time and last 30 days), donations, live/funded campaigns, giving per day, raised by category, money by payment source, top campaigns, latest donations
+- Analytics: raised (all time and last 30 days), donations, live/funded campaigns, giving per day, raised by category, money by gift size (with the payment sources noted), top campaigns, latest donations
 - Approve or reject (with a reason) from the review queue; feature, edit or delete campaigns
 - Manage users: activate/deactivate, delete; see campaigns and giving per user
 

@@ -106,6 +106,8 @@ export interface AdminAnalytics {
   daily: DailyPoint[];
   byCategory: { category: string; raised: number; donations: number }[];
   bySource: { source: PaymentSource; raised: number; donations: number }[];
+  /** Money by gift size; `min` is the band's lower bound in dollars (0, 25, 100, 250). */
+  bySize: { min: number; raised: number; donations: number }[];
   topCampaigns: { _id: string; title: string; raised: number; target: number; donationCount: number; percent: number }[];
   pending: {
     _id: string;

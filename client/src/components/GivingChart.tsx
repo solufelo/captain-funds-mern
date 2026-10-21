@@ -1,7 +1,6 @@
-import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DailyPoint } from "../interfaces";
 import { formatMoney } from "../lib/format";
-import { sparkPath } from "../lib/insights";
 import { useReducedMotion } from "../lib/useMotion";
 
 const shortDate = (d: string) =>
@@ -23,7 +22,24 @@ function ChartTip({ active, payload }: { active?: boolean; payload?: { payload: 
   );
 }
 
-/** 30-day giving area chart: amount per day, gifts in the tooltip, dashed daily average. */
+/** The daily average as a knocked-out pill on the right-hand axis, centred on its dashed line. */
+function AvgTag({ viewBox, value }: { viewBox?: { x: number; y: number; width: number }; value?: string }) {
+  if (!viewBox || !value) return null;
+  const w = Math.round(value.length * 6.3 + 18);
+  const x = viewBox.x + viewBox.width + 6;
+  return (
+    <g>
+      <rect x={x} y={viewBox.y - 11} width={w} height={22} rx={11} fill="#102525" stroke="#fffdf9" strokeWidth={3} paintOrder="stroke" />
+      <text x={x + w / 2} y={viewBox.y + 4} textAnchor="middle" fill="#f7f4ee" fontSize={11} fontWeight={600} style={{ fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </text>
+    </g>
+  );
+}
+
+const axisMoney = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`);
+
+/** 30-day giving: one bar per day (the best day in full amber), gifts in the tooltip, dashed daily average. */
 export default function GivingChart({ data, height = 240 }: { data: DailyPoint[]; height?: number }) {
   const reduced = useReducedMotion();
   const avg = data.length ? data.reduce((s, d) => s + d.amount, 0) / data.length : 0;
@@ -31,14 +47,8 @@ export default function GivingChart({ data, height = 240 }: { data: DailyPoint[]
   return (
     <div style={{ height }} className="w-full" data-testid="giving-chart">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 10, right: 6, bottom: 0, left: -6 }}>
-          <defs>
-            <linearGradient id="giving-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f0a43a" stopOpacity={0.42} />
-              <stop offset="100%" stopColor="#f0a43a" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid vertical={false} stroke="#e8e1d3" />
+        <BarChart data={data} margin={{ top: 12, right: 0, bottom: 0, left: 0 }} barCategoryGap="22%">
+          <CartesianGrid vertical={false} stroke="#ece6da" />
           <XAxis
             dataKey="date"
             tickFormatter={shortDate}
@@ -49,65 +59,54 @@ export default function GivingChart({ data, height = 240 }: { data: DailyPoint[]
             tickMargin={10}
           />
           <YAxis
-            tickFormatter={(v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`)}
+            orientation="right"
+            tickFormatter={axisMoney}
             tick={{ fill: "#65716d", fontSize: 12 }}
             axisLine={false}
             tickLine={false}
-            width={52}
+            width={78}
             tickCount={4}
+            tickMargin={10}
           />
+          <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(16,37,37,0.05)", radius: 4 }} />
+          <Bar
+            dataKey="amount"
+            radius={[4, 4, 1, 1]}
+            maxBarSize={22}
+            isAnimationActive={!reduced}
+            animationDuration={900}
+            animationEasing="ease-out"
+          >
+            {data.map((d) => (
+              <Cell key={d.date} fill={d === best ? "#e48f1d" : "#f5c784"} />
+            ))}
+          </Bar>
           {avg > 0 && (
             <ReferenceLine
               y={avg}
               stroke="#102525"
-              strokeOpacity={0.35}
+              strokeOpacity={0.45}
               strokeDasharray="4 5"
-              label={{ value: `avg ${formatMoney(avg)}/day`, position: "insideTopLeft", fill: "#65716d", fontSize: 11, dy: -14, dx: 4 }}
+              label={<AvgTag value={`avg ${formatMoney(avg)}`} />}
             />
           )}
-          {best && (
-            <ReferenceDot
-              x={best.date}
-              y={best.amount}
-              r={5}
-              fill="#f0a43a"
-              stroke="#fffdf9"
-              strokeWidth={3}
-              label={{ value: "best day", position: "left", fill: "#a05f08", fontSize: 11, fontWeight: 600, dx: -4 }}
-            />
-          )}
-          <Tooltip content={<ChartTip />} cursor={{ stroke: "#102525", strokeOpacity: 0.25, strokeWidth: 1 }} />
-          <Area
-            type="monotoneX"
-            dataKey="amount"
-            stroke="#d98a1c"
-            strokeWidth={2.4}
-            fill="url(#giving-fill)"
-            activeDot={{ r: 6, fill: "#f0a43a", stroke: "#fffdf9", strokeWidth: 3 }}
-            isAnimationActive={!reduced}
-            animationDuration={1400}
-            animationEasing="ease-out"
-          />
-        </AreaChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
-/** Tiny decorative trend line for stat cards. */
-export function Sparkline({ values, className = "", stroke = "#f0a43a" }: { values: number[]; className?: string; stroke?: string }) {
-  const { line, area } = sparkPath(values, 160, 48);
-  if (!line) return null;
+/** Trend strip for stat cards: one thin bar per day, matching the main chart, spanning the card's bottom edge. */
+export function Sparkline({ values, className = "", fill = "#f0a43a" }: { values: number[]; className?: string; fill?: string }) {
+  const max = Math.max(1, ...values);
+  if (!values.length) return null;
+  const step = 160 / values.length;
   return (
     <svg viewBox="0 0 160 48" preserveAspectRatio="none" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={stroke} stopOpacity="0.35" />
-          <stop offset="1" stopColor={stroke} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#spark-fill)" />
-      <path d={line} fill="none" stroke={stroke} strokeWidth="1.8" vectorEffect="non-scaling-stroke" className="spark-draw" pathLength={1} />
+      {values.map((v, i) => {
+        const h = Math.max(1.5, (Math.max(0, v) / max) * 40);
+        return <rect key={i} x={i * step + step * 0.2} y={48 - h} width={step * 0.6} height={h} rx={0.8} fill={fill} opacity={i === values.length - 1 ? 1 : 0.55} />;
+      })}
     </svg>
   );
 }

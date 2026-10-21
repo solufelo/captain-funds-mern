@@ -25,7 +25,7 @@ import type {
 import { ApiError } from "./errors";
 
 const STORAGE_KEY = "cf2_demo_state";
-const VERSION = 2;
+const VERSION = 3;
 const DAY = 24 * 60 * 60 * 1000;
 
 interface DemoUser extends User {
@@ -71,7 +71,7 @@ async function freshState(): Promise<DemoState> {
       email: u.email,
       isAdmin: u.isAdmin,
       isActive: true,
-      timeStamp: new Date(Date.now() - 90 * DAY).toISOString(),
+      timeStamp: u.joinedAt.toISOString(),
       passwordHash: u.password ? await sha256(u.password) : "!",
     });
   }
@@ -91,6 +91,7 @@ async function freshState(): Promise<DemoState> {
       _id: d.key,
       campaignId: d.campaignKey,
       campaignTitle: titles.get(d.campaignKey) || "",
+      donorId: d.donorKey,
       donorName: d.donorName,
       amount: d.amount,
       message: d.message,
@@ -491,6 +492,11 @@ export const demoApi = {
       daily: series,
       byCategory: group((d) => byId.get(d.campaignId)?.EventCategory || "Other").map(([category, v]) => ({ category, ...v })),
       bySource: group((d) => d.source).map(([source, v]) => ({ source, ...v })),
+      // Same bands as the server's $bucket (server/services/analytics.js).
+      bySize: [0, 25, 100, 250].map((min, i, bands) => {
+        const inBand = state.donations.filter((d) => d.amount >= min && (i === bands.length - 1 || d.amount < bands[i + 1]));
+        return { min, raised: inBand.reduce((s, d) => s + d.amount, 0), donations: inBand.length };
+      }),
       topCampaigns: campaigns
         .filter(isPublic)
         .sort((a, b) => b.EventCurrentAmount - a.EventCurrentAmount)

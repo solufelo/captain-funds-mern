@@ -6,7 +6,7 @@ import api from "../lib/api";
 import { useAppConfig } from "../lib/hooks";
 import { errorMessage } from "../lib/errors";
 import { formatDate, formatMoney } from "../lib/format";
-import { giftImpact } from "../lib/insights";
+import { giftImpact, impactPercents } from "../lib/insights";
 import { CountUp } from "../lib/motion";
 import { useReducedMotion } from "../lib/useMotion";
 import { paletteFor } from "../lib/palette";
@@ -150,6 +150,7 @@ export default function DonationModal({ open, campaign, onClose, onDonated }: Pr
 
   const stripe = config.payments === "stripe";
   const impact = giftImpact(campaign.EventCurrentAmount, campaign.EventTargetAmount, Number(amount) || 0);
+  const moves = impactPercents(campaign.EventCurrentAmount, campaign.EventTargetAmount, Number(amount) || 0);
 
   const submit = async (values: FormValues) => {
     setSubmitting(true);
@@ -208,8 +209,12 @@ export default function DonationModal({ open, campaign, onClose, onDonated }: Pr
             {snapshot?.name ? `Thank you, ${snapshot.name}.` : "Thank you."}
           </h2>
           <p className="reveal mx-auto mt-2 max-w-sm text-muted" style={{ "--d": "660ms" } as CSSProperties}>
-            Your {formatMoney(receipt.amount)} moves <strong className="text-ink">{receipt.campaignTitle}</strong> to{" "}
-            {done.afterPct}% funded{done.reachesGoal ? ", and over the line." : "."}
+            Your {formatMoney(receipt.amount)} moves <strong className="text-ink">{receipt.campaignTitle}</strong>{" "}
+            <span className="whitespace-nowrap">
+              to {impactPercents(snapshot!.raised, campaign.EventTargetAmount, receipt.amount)?.[1] ?? `${done.afterPct}%`} funded
+              {done.reachesGoal ? "," : "."}
+            </span>
+            {done.reachesGoal && " and over the line."}
           </p>
 
           <div className="reveal ticket mx-auto mt-7 max-w-sm text-left text-sm" style={{ "--d": "760ms" } as CSSProperties}>
@@ -221,7 +226,7 @@ export default function DonationModal({ open, campaign, onClose, onDonated }: Pr
             <dl className="space-y-1.5 px-5 pb-4 pt-3">
               <div className="flex justify-between gap-4">
                 <dt className="text-muted">Reference</dt>
-                <dd className="truncate font-mono text-xs leading-5 text-ink">{receipt.id.slice(0, 20)}…</dd>
+                <dd className="tabular font-semibold tracking-wide text-ink">CF-{receipt.id.replace(/[^a-z0-9]/gi, "").slice(-8).toUpperCase()}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted">Date</dt>
@@ -248,7 +253,7 @@ export default function DonationModal({ open, campaign, onClose, onDonated }: Pr
       ) : (
         <Form form={form} layout="vertical" onFinish={submit} requiredMark={false} className="donate-form">
           <div className="flex items-center gap-3 pr-8">
-            <CampaignCover id={campaign._id} category={campaign.EventCategory} image={campaign.image} className="h-11 w-11 shrink-0 rounded-full" />
+            <CampaignCover id={campaign._id} category={campaign.EventCategory} image={campaign.image} title={campaign.title} className="h-11 w-11 shrink-0 rounded-full" />
             <div className="min-w-0">
               <div className="kicker text-amber-deep">You're backing</div>
               <h2 className="truncate font-display text-[1.3rem] font-semibold leading-snug tracking-[-0.02em] text-ink">{campaign.title}</h2>
@@ -297,11 +302,19 @@ export default function DonationModal({ open, campaign, onClose, onDonated }: Pr
                   <>
                     <strong className="text-ink">This gift completes the goal.</strong> {impact.beforePct}% → {impact.afterPct}%
                   </>
+                ) : moves ? (
+                  <>
+                    Takes it from <strong className="text-ink">{moves[0]}</strong>{" "}
+                    <span className="whitespace-nowrap">
+                      to <strong className="text-ink">{moves[1]}</strong> funded
+                    </span>
+                    {impact.remainingAfter > 0 && (
+                      <span className="whitespace-nowrap"> · {formatMoney(impact.remainingAfter)} still to go</span>
+                    )}
+                  </>
                 ) : (
                   <>
-                    Takes it from <strong className="text-ink">{impact.beforePct}%</strong> to{" "}
-                    <strong className="text-ink">{impact.afterPct}%</strong> funded
-                    {impact.remainingAfter > 0 && <> · {formatMoney(impact.remainingAfter)} still to go</>}
+                    <strong className="text-ink">{formatMoney(impact.remainingAfter)}</strong> still to go after your gift
                   </>
                 )}
               </p>
@@ -342,8 +355,8 @@ export default function DonationModal({ open, campaign, onClose, onDonated }: Pr
               </span>
             ) : (
               <span>
-                <strong className="text-ink">Test payment.</strong> No card is asked for and nobody is charged. With Stripe
-                test keys set, this step becomes Stripe Checkout.
+                <strong className="text-ink">Test payment.</strong> No card is asked for and nobody is charged. Your gift
+                still lands on the campaign's ledger.
               </span>
             )}
           </div>

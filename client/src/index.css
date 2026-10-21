@@ -44,6 +44,100 @@ body {
   outline: 2px solid var(--color-amber) !important;
   outline-offset: 3px !important;
 }
+/* antd fields draw their own ring on the wrapper (ink border + amber halo,
+   see theme-provider), so the inner <input> must not add a second one. */
+.ant-input:focus-visible,
+.ant-input-affix-wrapper input:focus-visible,
+.ant-input-number-input:focus-visible,
+.ant-select input:focus-visible,
+.ant-picker input:focus-visible {
+  outline: none;
+}
+/* Keep the chosen value in ink while a select menu is open (antd greys it). */
+.ant-select-open .ant-select-selection-item {
+  color: var(--color-ink);
+}
+.cf-sort.ant-select .ant-select-selector {
+  border-radius: 999px;
+  padding-inline: 18px;
+}
+.cf-sort .ant-select-arrow {
+  inset-inline-end: 18px;
+}
+.ant-select-item-option-state {
+  display: flex;
+  align-items: center;
+  color: var(--color-amber);
+}
+
+/* Plain link/button styles for the landing page and header, which ship in
+   the first bundle without antd. Same shapes as the antd buttons elsewhere. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    height: 3.25rem;
+    padding-inline: 1.75rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background-color 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease,
+      transform 0.18s var(--ease-out-quint);
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn-sm {
+    height: 2.5rem;
+    padding-inline: 1.1rem;
+    font-size: 0.9rem;
+  }
+  .btn-amber {
+    background: var(--color-amber);
+    color: var(--color-ink);
+  }
+  .btn-amber:hover {
+    background: #f5b85c;
+  }
+  .btn-ink {
+    background: var(--color-ink-2);
+    color: var(--color-paper);
+  }
+  .btn-ink:hover {
+    background: var(--color-ink-3);
+  }
+  .btn-ghost {
+    border-color: rgba(247, 244, 238, 0.3);
+    color: var(--color-paper);
+  }
+  .btn-ghost:hover {
+    border-color: var(--color-paper);
+  }
+  .btn-line {
+    border-color: var(--color-line);
+    background: var(--color-card);
+    color: var(--color-ink);
+  }
+  .btn-line:hover {
+    border-color: rgba(16, 37, 37, 0.4);
+  }
+  .btn .btn-arrow {
+    transition: transform 0.5s var(--ease-out-expo);
+  }
+  .btn:hover .btn-arrow {
+    transform: translateX(3px);
+  }
+}
 
 h1,
 h2,
@@ -75,8 +169,23 @@ p {
   text-transform: uppercase;
 }
 
+/* Field rhythm: an error line fills exactly the space below its field
+   (antd swaps the item's margin for the message), so invalid and valid
+   forms keep the same layout and the message never touches the next label. */
 .ant-form-item {
-  margin-bottom: 18px;
+  margin-bottom: 26px;
+}
+.ant-form-item .ant-form-item-explain {
+  min-height: 26px;
+  padding: 3px 0 5px;
+  font-size: 0.82rem;
+  line-height: 18px;
+}
+.ant-form-item .ant-form-item-extra {
+  min-height: 0;
+  padding-top: 4px;
+  font-size: 0.82rem;
+  line-height: 18px;
 }
 .ant-form-item-label > label {
   font-weight: 500;
@@ -196,15 +305,6 @@ p {
 @keyframes stripes {
   to {
     background-position: 28px 0;
-  }
-}
-.spark-draw {
-  stroke-dasharray: 1;
-  animation: spark-draw 2s var(--ease-out-quint) 0.3s both;
-}
-@keyframes spark-draw {
-  from {
-    stroke-dashoffset: 1;
   }
 }
 .sr .sr-line {
@@ -694,8 +794,19 @@ p {
     margin-inline: -20px;
     padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px));
     margin-bottom: calc(-20px - env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(to top, var(--color-card) 70%, rgba(255, 253, 249, 0));
+    /* Solid behind the button, with a short fade above it, so nothing
+       scrolling underneath peeks around its rounded ends. */
+    background: var(--color-card);
     z-index: 2;
+  }
+  .cf-sheet-wrap .donate-submit::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 100%;
+    height: 28px;
+    background: linear-gradient(to top, var(--color-card), rgba(255, 253, 249, 0));
+    pointer-events: none;
   }
   .cf-sheet-wrap .ant-modal-content {
     border-radius: 28px 28px 0 0 !important;

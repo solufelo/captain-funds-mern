@@ -17,7 +17,9 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
       </a>
       <DemoBanner />
       <Header />
-      <main id="main" key={pathname} className="page-enter flex-1">
+      {/* At least a screen tall, so the footer never flashes into view (and then
+          jumps away) while a lazy route or its data is still loading. */}
+      <main id="main" key={pathname} className="page-enter min-h-[100svh] flex-1">
         {children}
       </main>
       <footer className="mt-24 overflow-hidden bg-ink text-paper/75">
