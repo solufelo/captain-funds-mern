@@ -243,20 +243,26 @@ export default function LandingPage() {
           <SectionHead kicker="How it works" title={<>One loop. <em className="font-normal italic text-ink-3">One ledger.</em></>} align="split">
             Four steps from idea to funded, and every screen you can open reads from the same record of gifts.
           </SectionHead>
-          <ol className="relative mt-16 grid list-none gap-10 p-0 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+          <ol className="relative mt-14 grid list-none gap-9 p-0 sm:mt-16 sm:grid-cols-2 sm:gap-10 lg:grid-cols-4 lg:gap-8">
+            {/* Phones: a vertical track through the glyphs. Desktop: a horizontal one. */}
+            <Reveal as="div" className="absolute bottom-10 left-6 top-6 w-px sm:hidden" aria-hidden>
+              <div className="sr-line-y h-full w-px bg-gradient-to-b from-amber/60 via-line to-line" />
+            </Reveal>
             <Reveal as="div" className="absolute left-0 right-0 top-6 hidden lg:block" aria-hidden>
               <div className="sr-line h-px w-full bg-gradient-to-r from-line via-amber/60 to-line" />
             </Reveal>
             {STEPS.map((step, i) => (
-              <Reveal as="li" key={step.title} delay={i * 120} className="relative">
-                <div className="relative inline-flex rounded-full bg-paper pr-4">
+              <Reveal as="li" key={step.title} delay={i * 120} className="relative grid grid-cols-[3rem_1fr] gap-x-5 sm:block">
+                <div className="relative inline-flex self-start rounded-full bg-paper py-1 sm:py-0 sm:pr-4">
                   <Glyph kind={step.glyph} />
                 </div>
-                <div className="mt-6 flex items-baseline gap-3">
-                  <span className="tabular font-display text-sm font-semibold text-amber-deep">0{i + 1}</span>
-                  <h3 className="font-display text-step-2 font-semibold text-ink">{step.title}</h3>
+                <div>
+                  <div className="flex items-baseline gap-3 sm:mt-6">
+                    <span className="tabular font-display text-sm font-semibold text-amber-deep">0{i + 1}</span>
+                    <h3 className="font-display text-step-2 font-semibold text-ink">{step.title}</h3>
+                  </div>
+                  <p className="mt-2 max-w-[17rem] text-[0.95rem] leading-relaxed text-muted sm:mt-3">{step.body}</p>
                 </div>
-                <p className="mt-3 max-w-[17rem] text-[0.95rem] leading-relaxed text-muted">{step.body}</p>
               </Reveal>
             ))}
           </ol>

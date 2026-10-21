@@ -22,18 +22,18 @@ function CategoryBars({ rows, total }: { rows: { category: string; raised: numbe
   return (
     <ul ref={ref} className="mt-6 list-none space-y-4 p-0">
       {rows.map((r, i) => (
-        <li key={r.category} className="grid grid-cols-[minmax(7rem,11.5rem)_1fr_auto] items-center gap-4 text-sm">
+        <li key={r.category} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 text-sm sm:grid-cols-[minmax(7rem,11.5rem)_1fr_auto]">
           <span className="flex items-center gap-2 truncate text-ink">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: paletteFor(r.category)[1] }} />
             <span className="truncate">{r.category}</span>
           </span>
-          <span className="relative h-3 overflow-hidden rounded-full bg-paper-2">
+          <span className="relative col-span-2 h-3 overflow-hidden rounded-full bg-paper-2 sm:col-span-1">
             <span
               className={`absolute inset-y-0 left-0 rounded-full ${inView ? "grow-x" : "scale-x-0"}`}
               style={{ width: `${(r.raised / max) * 100}%`, background: paletteFor(r.category)[1], "--d": `${i * 90}ms` } as CSSProperties}
             />
           </span>
-          <span className="tabular w-24 text-right">
+          <span className="tabular col-start-2 row-start-1 w-24 text-right sm:col-start-auto sm:row-start-auto">
             <span className="font-semibold text-ink">{formatMoney(r.raised)}</span>
             <span className="block text-xs text-faint">{Math.round((r.raised / Math.max(1, total)) * 100)}% · {r.donations} gifts</span>
           </span>
@@ -243,7 +243,7 @@ export default function AdminAnalyticsPage() {
               )}
               <div className="mt-auto pt-6">
                 <div className="kicker text-faint">Campaign status</div>
-                <dl className="tabular mt-3 grid grid-cols-4 gap-2 text-center">
+                <dl className="tabular mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                   {[
                     { k: "Taking gifts", v: data.totals.campaigns.live, c: "bg-moss" },
                     { k: "Goal met", v: data.totals.campaigns.funded, c: "bg-amber" },

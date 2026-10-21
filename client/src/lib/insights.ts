@@ -176,3 +176,13 @@ export function shareLabel(part: number, whole: number): string {
   if (pct < 1) return "<1%";
   return `${Math.round(pct)}%`;
 }
+
+/** Change in the average gift, last `days` vs the `days` before; null without gifts in both. */
+export function averageGiftDelta(series: { amount: number; count: number }[], days = 7): number | null {
+  const money = periodDelta(series, days);
+  const gifts = periodDelta(series.map((p) => ({ amount: p.count })), days);
+  if (!gifts.current || !gifts.previous || !money.previous) return null;
+  const now = money.current / gifts.current;
+  const before = money.previous / gifts.previous;
+  return (now - before) / before;
+}

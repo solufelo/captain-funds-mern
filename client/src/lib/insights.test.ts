@@ -1,6 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  averageGiftDelta,
   cometPoint,
   easeOutExpo,
   formatChange,
@@ -209,5 +210,19 @@ describe("share labels", () => {
     assert.equal(shareLabel(40495, 40595), "100%");
     assert.equal(shareLabel(0, 100), "0%");
     assert.equal(shareLabel(5, 0), "0%");
+  });
+});
+
+describe("average gift delta", () => {
+  const week = (amount: number, count: number) => Array.from({ length: 7 }, () => ({ amount, count }));
+  test("compares this week's average gift with last week's", () => {
+    // Last week: $50 a gift. This week: $60 a gift, even with fewer gifts.
+    const change = averageGiftDelta([...week(100, 2), ...week(60, 1)]);
+    assert.ok(change !== null && Math.abs(change - 0.2) < 1e-9);
+  });
+  test("is null when either week has no gifts", () => {
+    assert.equal(averageGiftDelta([...week(0, 0), ...week(60, 1)]), null);
+    assert.equal(averageGiftDelta([...week(60, 1), ...week(0, 0)]), null);
+    assert.equal(averageGiftDelta([]), null);
   });
 });

@@ -215,6 +215,14 @@ p {
 .sr.in .sr-line {
   transform: none;
 }
+.sr .sr-line-y {
+  transform: scaleY(0);
+  transform-origin: center top;
+  transition: transform 2.2s var(--ease-out-expo) 0.2s;
+}
+.sr.in .sr-line-y {
+  transform: none;
+}
 
 @keyframes shimmer {
   from {
@@ -317,6 +325,10 @@ p {
   opacity: calc(0.62 + 0.38 * (var(--depth, 1) + 1) / 2);
   will-change: transform;
   -webkit-tap-highlight-color: transparent;
+}
+.planet:focus-visible {
+  border-radius: 50%;
+  outline-offset: 2px;
 }
 .planet-in {
   transition: transform 0.6s var(--ease-out-expo);

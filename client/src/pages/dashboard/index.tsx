@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import api from "../../lib/api";
 import { useAsync } from "../../lib/hooks";
 import { daysLeftLabel, formatMoney, formatNumber, percentFunded, timeAgo } from "../../lib/format";
-import { periodDelta, toneIndex } from "../../lib/insights";
+import { averageGiftDelta, periodDelta, toneIndex } from "../../lib/insights";
 import { CountUp, Reveal } from "../../lib/motion";
 import userStore from "../../store/users-store";
 import GivingChart, { Sparkline } from "../../components/GivingChart";
@@ -70,7 +70,12 @@ export default function OrganiserDashboard() {
               value={<CountUp value={data.totals.donations} format={formatNumber} />}
               hint={<DeltaChip change={gifts7?.change ?? null} />}
             />
-            <Stat className="reveal" label="Average gift" value={<CountUp value={data.totals.averageDonation} format={formatMoney} />} />
+            <Stat
+              className="reveal"
+              label="Average gift"
+              value={<CountUp value={data.totals.averageDonation} format={formatMoney} />}
+              hint={<DeltaChip change={averageGiftDelta(data.daily)} />}
+            />
             <Stat
               className="reveal col-span-2 sm:col-span-1"
               label="Live campaigns"

@@ -1,4 +1,4 @@
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DailyPoint } from "../interfaces";
 import { formatMoney } from "../lib/format";
 import { sparkPath } from "../lib/insights";
@@ -27,6 +27,7 @@ function ChartTip({ active, payload }: { active?: boolean; payload?: { payload: 
 export default function GivingChart({ data, height = 240 }: { data: DailyPoint[]; height?: number }) {
   const reduced = useReducedMotion();
   const avg = data.length ? data.reduce((s, d) => s + d.amount, 0) / data.length : 0;
+  const best = data.reduce<DailyPoint | null>((b, d) => (d.amount > (b?.amount ?? 0) ? d : b), null);
   return (
     <div style={{ height }} className="w-full" data-testid="giving-chart">
       <ResponsiveContainer width="100%" height="100%">
@@ -62,6 +63,17 @@ export default function GivingChart({ data, height = 240 }: { data: DailyPoint[]
               strokeOpacity={0.35}
               strokeDasharray="4 5"
               label={{ value: `avg ${formatMoney(avg)}/day`, position: "insideTopLeft", fill: "#65716d", fontSize: 11, dy: -14, dx: 4 }}
+            />
+          )}
+          {best && (
+            <ReferenceDot
+              x={best.date}
+              y={best.amount}
+              r={5}
+              fill="#f0a43a"
+              stroke="#fffdf9"
+              strokeWidth={3}
+              label={{ value: "best day", position: "left", fill: "#a05f08", fontSize: 11, fontWeight: 600, dx: -4 }}
             />
           )}
           <Tooltip content={<ChartTip />} cursor={{ stroke: "#102525", strokeOpacity: 0.25, strokeWidth: 1 }} />
