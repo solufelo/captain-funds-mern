@@ -43,7 +43,10 @@ function SessionWatcher() {
   useEffect(() => {
     setUnauthorizedHandler(() => navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true }));
   }, [navigate, location.pathname]);
-  useEffect(() => window.scrollTo(0, 0), [location.pathname]);
+  // Keep the braces: newer Chrome returns a Promise from scrollTo, and React calls an effect's return value as its cleanup.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
   return null;
 }
 
