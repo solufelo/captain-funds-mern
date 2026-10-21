@@ -45,7 +45,7 @@ export default function LoginPage() {
       {config.demoAccounts && (
         <>
           <div className="kicker text-amber-deep">Demo accounts · one click</div>
-          <div className="mt-3 grid gap-3">
+          <div className="mt-3 grid grid-cols-1 gap-3">
             {[
               { key: "demo-user", testid: "demo-organiser", who: "Organiser", what: "Your campaigns, gifts and a 30-day chart", acct: DEMO_ACCOUNTS.user, next: "/dashboard", dot: "#1a3636" },
               { key: "demo-admin", testid: "demo-admin", who: "Admin", what: "Review queue, platform analytics and users", acct: DEMO_ACCOUNTS.admin, next: "/admin", dot: "#f0a43a" },
@@ -63,7 +63,7 @@ export default function LoginPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold text-ink">{d.who}</span>
-                  <span className="block truncate text-sm text-muted">{d.what}</span>
+                  <span className="mt-0.5 block text-sm leading-snug text-muted">{d.what}</span>
                 </span>
                 <span className="text-ink/50 transition-transform duration-500 ease-[var(--ease-out-expo)] group-hover:translate-x-1 group-hover:text-ink">→</span>
               </button>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { io, type Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import type { AppConfig } from "../interfaces";
 import api from "./api";
 import { isDemoMode } from "./config";
@@ -52,12 +52,13 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   return { data, error, loading, reload: () => setTick((t) => t + 1), setData };
 }
 
-let socket: Socket | null = null;
+// Loaded on first use, so pages without live totals don't ship the client.
+let socket: Promise<Socket> | null = null;
 function getSocket() {
-  if (!socket) {
+  socket ??= import("socket.io-client").then(({ io }) => {
     const url = (import.meta.env.VITE_SOCKET_URL as string | undefined) || undefined;
-    socket = io(url ?? window.location.origin, { transports: ["websocket"], auth: { token: getToken() } });
-  }
+    return io(url ?? window.location.origin, { transports: ["websocket"], auth: { token: getToken() } });
+  });
   return socket;
 }
 
@@ -77,18 +78,26 @@ export function useCampaignLive(campaignId: string | undefined, onDonation: () =
       window.addEventListener("cf:donation", handler);
       return () => window.removeEventListener("cf:donation", handler);
     }
-    const s = getSocket();
-    const join = () => s.emit("join-campaign", campaignId);
-    const handler = (data: { campaignId: string }) => {
-      if (String(data?.campaignId) === campaignId) cb.current();
-    };
-    join();
-    s.on("connect", join);
-    s.on("campaign-updated", handler);
+    let alive = true;
+    let stop = () => {};
+    getSocket().then((s) => {
+      if (!alive) return;
+      const join = () => s.emit("join-campaign", campaignId);
+      const handler = (data: { campaignId: string }) => {
+        if (String(data?.campaignId) === campaignId) cb.current();
+      };
+      join();
+      s.on("connect", join);
+      s.on("campaign-updated", handler);
+      stop = () => {
+        s.emit("leave-campaign", campaignId);
+        s.off("connect", join);
+        s.off("campaign-updated", handler);
+      };
+    });
     return () => {
-      s.emit("leave-campaign", campaignId);
-      s.off("connect", join);
-      s.off("campaign-updated", handler);
+      alive = false;
+      stop();
     };
   }, [campaignId]);
 }

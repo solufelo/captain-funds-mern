@@ -319,7 +319,7 @@ export default function DonationModal({ open, campaign, onClose, onDonated }: Pr
             )}
           </div>
 
-          <Form.Item name="message" label="Message (optional)" rules={[{ max: 280 }]}>
+          <Form.Item name="message" label="Message (optional)" rules={[{ max: 280 }]} className="!mb-8">
             <Input.TextArea rows={2} maxLength={280} showCount placeholder="A note for the organiser" />
           </Form.Item>
 

@@ -15,16 +15,21 @@ import userStore from "../store/users-store";
 import { endSession } from "../lib/session";
 import { Brand } from "../components/ui";
 
-/** Over a dark hero (landing, 404) the header is transparent ink; elsewhere, paper. */
+/**
+ * Over a dark hero (landing, 404) the header is clear ink, frosting over once
+ * the page scrolls under it; elsewhere, paper.
+ */
 function useOverHero() {
   const { pathname } = useLocation();
   const [over, setOver] = useState(pathname === "/");
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     let raf = 0;
     const check = () => {
       raf = 0;
       const hero = document.querySelector("[data-hero]");
       setOver(hero ? hero.getBoundingClientRect().bottom > 72 : false);
+      setScrolled(window.scrollY > 8);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(check);
@@ -41,14 +46,14 @@ function useOverHero() {
       window.removeEventListener("resize", onScroll);
     };
   }, [pathname]);
-  return over;
+  return { dark: over, frosted: over && scrolled };
 }
 
 export default function Header() {
   const navigate = useNavigate();
   const { currentUser } = userStore();
   const [open, setOpen] = useState(false);
-  const dark = useOverHero();
+  const { dark, frosted } = useOverHero();
 
   const logout = () => {
     endSession();
@@ -94,7 +99,11 @@ export default function Header() {
   return (
     <header
       className={`sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-500 ${
-        dark ? "border-transparent bg-transparent" : "border-line/70 bg-paper/80 backdrop-blur-xl backdrop-saturate-150"
+        frosted
+          ? "border-paper/10 bg-ink/70 backdrop-blur-xl backdrop-saturate-150"
+          : dark
+            ? "border-transparent bg-transparent"
+            : "border-line/70 bg-paper/80 backdrop-blur-xl backdrop-saturate-150"
       }`}
       data-tone={dark ? "dark" : "light"}
     >

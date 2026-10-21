@@ -77,7 +77,11 @@ export default function CampaignsPage() {
               popupMatchSelectWidth={false}
             />
           </div>
-          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:-mx-1 sm:px-1" role="tablist" aria-label="Categories">
+          <div
+            className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pr-14 [mask-image:linear-gradient(90deg,#000_calc(100%-3.5rem),transparent)] sm:-mx-1 sm:px-1 sm:pr-14"
+            role="tablist"
+            aria-label="Categories"
+          >
             {["", ...CATEGORIES].map((c) => (
               <button
                 key={c || "all"}

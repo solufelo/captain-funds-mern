@@ -43,7 +43,7 @@ function MiniOrbit() {
 /** Split auth layout: night-sky brand panel (desktop), form on paper. */
 export default function AuthShell({ title, subtitle, children }: { title: string; subtitle: ReactNode; children: ReactNode }) {
   return (
-    <div className="grid min-h-screen md:grid-cols-[1fr_1.1fr]">
+    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[1fr_1.1fr]">
       <div className="grain relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-paper md:flex lg:p-14">
         <Starfield count={70} seed={11} />
         <div className="relative">

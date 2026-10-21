@@ -1,12 +1,14 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  cometPoint,
   easeOutExpo,
   formatChange,
   giftImpact,
   orbitLayout,
   orbitPoint,
   periodDelta,
+  shareLabel,
   sparkPath,
   toneIndex,
   tweenValue,
@@ -170,5 +172,42 @@ describe("sparkline path", () => {
     assert.ok(!sparkPath([0, 0, 0], 100, 40).line.includes("NaN"));
     assert.ok(!sparkPath([7], 100, 40).line.includes("NaN"));
     assert.ok(!sparkPath([-5, 3], 100, 40).line.includes("NaN"));
+  });
+});
+
+describe("gift comets", () => {
+  const from = { x: 200, y: -60 };
+  test("starts at the planet and lands on the sun", () => {
+    const a = cometPoint(from, 0);
+    assert.ok(Math.abs(a.x - 200) < 1e-9 && Math.abs(a.y + 60) < 1e-9);
+    const b = cometPoint(from, 1);
+    assert.ok(Math.abs(b.x) < 1e-9 && Math.abs(b.y) < 1e-9);
+    assert.deepEqual(cometPoint(from, 5), b, "progress is clamped");
+  });
+
+  test("gets closer to the sun the whole way down", () => {
+    let last = Infinity;
+    for (let t = 0; t <= 1.0001; t += 0.1) {
+      const p = cometPoint(from, t);
+      const d = Math.hypot(p.x, p.y);
+      assert.ok(d < last + 1e-9);
+      last = d;
+    }
+  });
+
+  test("with no bend it falls in a straight line, heading at the sun", () => {
+    const p = cometPoint({ x: 100, y: 0 }, 0.5, 0);
+    assert.ok(Math.abs(p.y) < 1e-9 && p.x > 0 && p.x < 100);
+    assert.equal(Math.round(Math.abs(p.angle)), 180);
+  });
+});
+
+describe("share labels", () => {
+  test("rounds, flags slivers and handles empty totals", () => {
+    assert.equal(shareLabel(25, 100), "25%");
+    assert.equal(shareLabel(100, 40595), "<1%");
+    assert.equal(shareLabel(40495, 40595), "100%");
+    assert.equal(shareLabel(0, 100), "0%");
+    assert.equal(shareLabel(5, 0), "0%");
   });
 });

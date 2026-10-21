@@ -114,7 +114,7 @@ test("unknown pages get a designed 404 with a way back", async ({ page }) => {
 test("phone: the donate bar opens a bottom sheet and nothing scrolls sideways", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  for (const path of ["/", "/campaigns"]) {
+  for (const path of ["/login", "/", "/campaigns"]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

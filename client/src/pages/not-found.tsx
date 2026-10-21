@@ -48,7 +48,7 @@ export default function NotFound() {
             </Button>
           </Link>
         </div>
-        <p className="mt-10 font-mono text-xs text-paper/35">Error 404 · page not found</p>
+        <p className="kicker mt-10 text-paper/50">Error 404 · page not found</p>
       </div>
     </section>
   );

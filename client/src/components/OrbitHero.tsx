@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import type { Campaign } from "../interfaces";
+import type { Campaign, PublicDonation } from "../interfaces";
 import { formatMoney, percentFunded } from "../lib/format";
-import { orbitLayout, orbitPoint, RING_RADII } from "../lib/insights";
+import { cometPoint, orbitLayout, orbitPoint, RING_RADII } from "../lib/insights";
 import { CountUp } from "../lib/motion";
 import { useReducedMotion } from "../lib/useMotion";
 import { paletteFor } from "../lib/palette";
@@ -10,6 +10,7 @@ import { ProgressBar } from "./ui";
 
 const TILT = 0.44;
 const CYCLE_MS = 4800;
+const COMET_MS = 1300;
 
 function Planet({ campaign, size, active }: { campaign: Campaign; size: number; active: boolean }) {
   const [deep, mid, light, accent] = paletteFor(campaign.EventCategory);
@@ -64,9 +65,10 @@ function Planet({ campaign, size, active }: { campaign: Campaign; size: number; 
  * tilted orbit around the ledger. Ring = how far it's funded, size = goal.
  * Planets are buttons (hover, focus or tap to inspect); the card below links
  * to the campaign. Positions are written straight to the DOM in one rAF loop,
- * so React doesn't re-render per frame. Reduced motion: a still system.
+ * so React doesn't re-render per frame. Recent gifts replay as comets falling
+ * from their campaign's planet into the ledger. Reduced motion: a still system.
  */
-export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campaign[]; totalRaised?: number }) {
+export default function OrbitHero({ campaigns, totalRaised, gifts = [] }: { campaigns: Campaign[]; totalRaised?: number; gifts?: PublicDonation[] }) {
   const reduced = useReducedMotion();
   const stageRef = useRef<HTMLDivElement>(null);
   const bodyRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -76,6 +78,11 @@ export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campa
   const pausedUntil = useRef(0);
   const hovering = useRef(false);
   const clock = useRef(0);
+  const sunRef = useRef<HTMLDivElement>(null);
+  const cometRef = useRef<HTMLSpanElement>(null);
+  const giftTagRef = useRef<HTMLSpanElement>(null);
+  const giftsRef = useRef(gifts);
+  giftsRef.current = gifts;
 
   const items = campaigns.slice(0, 7);
   const scale = Math.min(1, width / 560);
@@ -125,11 +132,61 @@ export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campa
       last = performance.now();
       if (visible) raf = requestAnimationFrame(tick);
     });
+    // One gift comet at a time, replaying the latest gifts in order.
+    const sunR = Math.round(132 * scale) / 2 - 2;
+    let comet: { x: number; y: number; t0: number; amount: number } | null = null;
+    let nextComet = performance.now() + 2600;
+    let giftIndex = 0;
+    const launch = (now: number) => {
+      const list = giftsRef.current;
+      const gift = list.length ? list[giftIndex++ % list.length] : null;
+      const at = gift ? items.findIndex((c) => c._id === gift.campaignId) : -1;
+      const b = bodies[at >= 0 ? at : Math.floor(Math.random() * bodies.length)];
+      const p = orbitPoint(b.angle + b.speed * clock.current, b.radius * half, TILT);
+      comet = { x: p.x, y: p.y, t0: now, amount: gift?.amount ?? 0 };
+    };
+    const land = (amount: number) => {
+      sunRef.current?.animate(
+        [{ transform: "scale(1)" }, { transform: "scale(1.07)" }, { transform: "scale(1)" }],
+        { duration: 700, easing: "cubic-bezier(.16,1,.3,1)" },
+      );
+      const tag = giftTagRef.current;
+      if (tag && amount) {
+        tag.textContent = `+${formatMoney(amount)}`;
+        tag.animate(
+          [
+            { opacity: 0, transform: "translate(-50%, 6px)" },
+            { opacity: 1, transform: "translate(-50%, -6px)", offset: 0.25 },
+            { opacity: 0, transform: "translate(-50%, -26px)" },
+          ],
+          { duration: 1500, easing: "cubic-bezier(.16,1,.3,1)" },
+        );
+      }
+    };
+    const fly = (now: number) => {
+      const el = cometRef.current;
+      if (!el) return;
+      if (!comet && now >= nextComet) launch(now);
+      if (!comet) return;
+      const t = (now - comet.t0) / COMET_MS;
+      const q = cometPoint(comet, t, 0.5);
+      // Land on the sun's rim rather than crossing its face.
+      if (t >= 1 || Math.hypot(q.x, q.y) < sunR) {
+        el.style.opacity = "0";
+        land(comet.amount);
+        comet = null;
+        nextComet = now + 1800 + Math.random() * 1600;
+        return;
+      }
+      el.style.transform = `translate3d(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px, 0) rotate(${q.angle.toFixed(1)}deg)`;
+      el.style.opacity = String(Math.min(1, t * 5));
+    };
     const tick = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       if (!hovering.current) clock.current += dt;
       place();
+      fly(now);
       if (visible) raf = requestAnimationFrame(tick);
     };
     if (stageRef.current) io.observe(stageRef.current);
@@ -138,7 +195,31 @@ export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campa
       cancelAnimationFrame(raf);
       io.disconnect();
     };
-  }, [bodies, half, reduced]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodies, half, reduced, scale]);
+
+  // A little depth: the system leans toward a mouse pointer, the stars drift the other way.
+  useEffect(() => {
+    const stage = stageRef.current;
+    const hero = stage?.closest<HTMLElement>("[data-hero]");
+    if (reduced || !stage || !hero || !window.matchMedia?.("(pointer: fine)").matches) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const nx = e.clientX / window.innerWidth - 0.5;
+        const ny = e.clientY / window.innerHeight - 0.5;
+        stage.style.transform = `perspective(1400px) rotateX(${(-ny * 7).toFixed(2)}deg) rotateY(${(nx * 9).toFixed(2)}deg)`;
+        hero.style.setProperty("--px", nx.toFixed(3));
+        hero.style.setProperty("--py", ny.toFixed(3));
+      });
+    };
+    hero.addEventListener("pointermove", onMove);
+    return () => {
+      cancelAnimationFrame(raf);
+      hero.removeEventListener("pointermove", onMove);
+    };
+  }, [reduced]);
 
   // Gently tour the planets until someone interacts.
   useEffect(() => {
@@ -161,7 +242,7 @@ export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campa
     <div className="relative">
       <div
         ref={stageRef}
-        className="relative mx-auto aspect-[10/6.4] w-full select-none sm:aspect-[10/8.2]"
+        className="orbit-stage relative mx-auto aspect-[10/6.4] w-full select-none sm:aspect-[10/8.2]"
         role="group"
         aria-label="Live campaigns in orbit. Each planet is a campaign; its ring shows how much it has raised."
         onPointerEnter={(e) => {
@@ -199,8 +280,10 @@ export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campa
         </svg>
 
         {/* The ledger: the sun everything orbits */}
+        <span ref={cometRef} className="comet pointer-events-none absolute left-1/2 top-1/2 z-[35] opacity-0" aria-hidden />
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-          <div className="sun relative flex aspect-square items-center justify-center rounded-full text-center" style={{ width: Math.round(132 * scale) }}>
+          <span ref={giftTagRef} className="gift-tag tabular" aria-hidden />
+          <div ref={sunRef} className="sun relative flex aspect-square items-center justify-center rounded-full text-center" style={{ width: Math.round(132 * scale) }}>
             <div className="relative">
               <div className="tabular font-display font-semibold leading-none text-ink" style={{ fontSize: Math.round(25 * scale) }}>
                 {totalRaised === undefined ? "…" : <CountUp value={totalRaised} format={formatMoney} duration={1800} />}
@@ -247,10 +330,10 @@ export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campa
       <div className="relative z-40 mx-auto -mt-[4%] w-[min(100%,25rem)] sm:-mt-[12%] sm:ml-[6%] sm:mr-auto" aria-live="polite">
         {current ? (
           <Link
-            key={current._id}
             to={`/campaigns/${current._id}`}
             className="orbit-card group block rounded-[1.6rem] border border-paper/10 bg-card p-5 text-ink no-underline shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)]"
           >
+            <div key={current._id} className="orbit-swap">
             <div className="flex items-center justify-between gap-3">
               <span className="kicker flex items-center gap-2 text-muted">
                 <span className="h-2 w-2 rounded-full" style={{ background: paletteFor(current.EventCategory)[1] }} />
@@ -273,6 +356,7 @@ export default function OrbitHero({ campaigns, totalRaised }: { campaigns: Campa
                 Open
                 <span className="inline-block transition-transform duration-500 ease-[var(--ease-out-expo)] group-hover:translate-x-1">→</span>
               </span>
+            </div>
             </div>
           </Link>
         ) : (

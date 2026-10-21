@@ -6,15 +6,16 @@ import PrivateLayout from "./layout/private-layout";
 import PublicLayout from "./layout/public-layout";
 import AdminLayout from "./layout/admin-layout";
 import LandingPage from "./pages/landing";
-import CampaignsPage from "./pages/campaigns";
-import CampaignDetailPage from "./pages/campaigns/detail";
-import LoginPage from "./pages/auth/login";
-import RegisterPage from "./pages/auth/register";
 import Loader from "./components/Loader";
 import NotFound from "./pages/not-found";
 import { setUnauthorizedHandler } from "./lib/session";
 
-// Signed-in and admin pages are split out so the public pages load fast.
+// Only the landing page ships in the first bundle; every other route (and
+// the antd components it needs) loads on demand.
+const CampaignsPage = lazy(() => import("./pages/campaigns"));
+const CampaignDetailPage = lazy(() => import("./pages/campaigns/detail"));
+const LoginPage = lazy(() => import("./pages/auth/login"));
+const RegisterPage = lazy(() => import("./pages/auth/register"));
 const NewCampaignPage = lazy(() => import("./pages/campaigns/new"));
 const OrganiserDashboard = lazy(() => import("./pages/dashboard"));
 const DonationsPage = lazy(() => import("./pages/donations"));
@@ -45,7 +46,24 @@ function SessionWatcher() {
   return null;
 }
 
+/** Warm the likely next routes once the landing page is idle. */
+function usePrefetchRoutes() {
+  useEffect(() => {
+    const run = () => {
+      void import("./pages/campaigns");
+      void import("./pages/campaigns/detail");
+    };
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(run, { timeout: 3000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(run, 1500);
+    return () => clearTimeout(t);
+  }, []);
+}
+
 export default function App() {
+  usePrefetchRoutes();
   return (
     <ThemeProvider>
       <BrowserRouter>
@@ -56,8 +74,8 @@ export default function App() {
           <Route path="/campaigns/new" element={signedIn(<NewCampaignPage />)} />
           <Route path="/campaigns/:id" element={site(<CampaignDetailPage />)} />
 
-          <Route path="/login" element={<PublicLayout><LoginPage /></PublicLayout>} />
-          <Route path="/register" element={<PublicLayout><RegisterPage /></PublicLayout>} />
+          <Route path="/login" element={<PublicLayout><Suspense fallback={<Loading />}><LoginPage /></Suspense></PublicLayout>} />
+          <Route path="/register" element={<PublicLayout><Suspense fallback={<Loading />}><RegisterPage /></Suspense></PublicLayout>} />
 
           <Route path="/dashboard" element={signedIn(<OrganiserDashboard />)} />
           <Route path="/donations" element={signedIn(<DonationsPage />)} />

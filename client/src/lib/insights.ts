@@ -147,3 +147,32 @@ export function sparkPath(values: number[], w: number, h: number, pad = 2): { li
   const last = pts[pts.length - 1][0].toFixed(1);
   return { line, area: `${line} L${last} ${h} L${pad} ${h} Z` };
 }
+
+/**
+ * Where a gift "comet" is at progress t (0..1) on its fall from a planet at
+ * `from` into the ledger sun at the origin: a quadratic curve bent sideways by
+ * `bend` (a fraction of the distance), eased in so it speeds up as it falls.
+ * `angle` is the heading in degrees, for pointing the tail.
+ */
+export function cometPoint(from: { x: number; y: number }, t: number, bend = 0.28) {
+  const p = Math.min(1, Math.max(0, t));
+  const e = p * p;
+  const dist = Math.hypot(from.x, from.y) || 1;
+  // Control point: halfway in, pushed off the straight line.
+  const cx = from.x / 2 - (from.y / dist) * bend * dist;
+  const cy = from.y / 2 + (from.x / dist) * bend * dist;
+  const u = 1 - e;
+  const x = u * u * from.x + 2 * u * e * cx;
+  const y = u * u * from.y + 2 * u * e * cy;
+  const dx = 2 * u * (cx - from.x) - 2 * e * cx;
+  const dy = 2 * u * (cy - from.y) - 2 * e * cy;
+  return { x, y, angle: (Math.atan2(dy, dx) * 180) / Math.PI };
+}
+
+/** Share of a whole as a label: "37%", "<1%" for a sliver, "0%" for nothing. */
+export function shareLabel(part: number, whole: number): string {
+  if (!whole || whole <= 0 || part <= 0) return "0%";
+  const pct = (part / whole) * 100;
+  if (pct < 1) return "<1%";
+  return `${Math.round(pct)}%`;
+}

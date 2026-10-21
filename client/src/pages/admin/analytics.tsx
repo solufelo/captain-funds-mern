@@ -6,7 +6,7 @@ import api from "../../lib/api";
 import { useAsync } from "../../lib/hooks";
 import { errorMessage } from "../../lib/errors";
 import { formatDate, formatMoney, formatNumber, SOURCE_LABEL, timeAgo } from "../../lib/format";
-import { periodDelta, toneIndex } from "../../lib/insights";
+import { periodDelta, shareLabel, toneIndex } from "../../lib/insights";
 import { CountUp, Reveal } from "../../lib/motion";
 import { useInView } from "../../lib/useMotion";
 import { paletteFor } from "../../lib/palette";
@@ -40,6 +40,40 @@ function CategoryBars({ rows, total }: { rows: { category: string; raised: numbe
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Share of money by source as a ring, drawn in when it scrolls into view. */
+function SourceRing({ rows, total }: { rows: { source: string; raised: number }[]; total: number }) {
+  const { ref, inView } = useInView<SVGSVGElement>();
+  const r = 62;
+  const c = 2 * Math.PI * r;
+  let start = 0;
+  return (
+    <svg ref={ref} viewBox="0 0 160 160" className="h-44 w-44 shrink-0 -rotate-90" role="img" aria-label="Share of money by payment source">
+      <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-paper-2)" strokeWidth="14" />
+      {inView &&
+        rows.map((s, i) => {
+          const len = (s.raised / total) * c;
+          const seg = (
+            <circle
+              key={s.source}
+              cx="80"
+              cy="80"
+              r={r}
+              fill="none"
+              stroke={SOURCE_COLOR[s.source] || "#8a9592"}
+              strokeWidth="14"
+              strokeLinecap={len > 8 ? "butt" : "round"}
+              strokeDashoffset={-start}
+              className="arc-draw"
+              style={{ "--len": `${Math.max(len, 0.01)}px`, "--c": `${c}px`, "--d": `${150 + i * 220}ms` } as CSSProperties}
+            />
+          );
+          start += len;
+          return seg;
+        })}
+    </svg>
   );
 }
 
@@ -237,34 +271,34 @@ export default function AdminAnalyticsPage() {
             <Reveal as="section" delay={100} className="rounded-[1.6rem] border border-line bg-card p-5 sm:p-7">
               <h2 className="font-display text-xl font-semibold tracking-[-0.02em]">Where the money came from</h2>
               <p className="mt-1 text-xs text-muted">Every source here is test or demo data. No real payments exist.</p>
-              <div className="mt-6 flex h-4 overflow-hidden rounded-full bg-paper-2" role="img" aria-label="Share of money by payment source">
-                {data.bySource.map((s, i) => (
-                  <span
-                    key={s.source}
-                    className="grow-x h-full first:rounded-l-full last:rounded-r-full"
-                    style={{ width: `${(s.raised / sourceTotal) * 100}%`, background: SOURCE_COLOR[s.source] || "#8a9592", "--d": `${200 + i * 150}ms` } as CSSProperties}
-                  />
-                ))}
-              </div>
-              <ul className="mt-5 list-none space-y-3 p-0">
-                {data.bySource.map((s) => (
-                  <li key={s.source} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="flex items-center gap-2.5">
-                      <span className="h-2.5 w-2.5 rounded-sm" style={{ background: SOURCE_COLOR[s.source] || "#8a9592" }} />
-                      <span>
-                        <span className="font-medium text-ink">{SOURCE_LABEL[s.source] || s.source}</span>
-                        <span className="block text-xs text-faint">
-                          {formatNumber(s.donations)} gift{s.donations === 1 ? "" : "s"}
+              <div className="mt-6 flex flex-col items-center gap-7">
+                <div className="relative">
+                  <SourceRing rows={data.bySource} total={sourceTotal} />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <span className="tabular font-display text-2xl font-semibold leading-none tracking-[-0.02em]">{formatMoney(sourceTotal)}</span>
+                    <span className="mt-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-faint">test money</span>
+                  </div>
+                </div>
+                <ul className="w-full list-none space-y-4 p-0">
+                  {data.bySource.map((s) => (
+                    <li key={s.source} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="flex items-center gap-2.5">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: SOURCE_COLOR[s.source] || "#8a9592" }} />
+                        <span>
+                          <span className="font-medium text-ink">{SOURCE_LABEL[s.source] || s.source}</span>
+                          <span className="block text-xs text-faint">
+                            {formatNumber(s.donations)} gift{s.donations === 1 ? "" : "s"}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                    <span className="tabular text-right">
-                      <span className="font-semibold">{formatMoney(s.raised)}</span>
-                      <span className="block text-xs text-faint">{Math.round((s.raised / sourceTotal) * 100)}%</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                      <span className="tabular text-right">
+                        <span className="font-semibold">{formatMoney(s.raised)}</span>
+                        <span className="block text-xs text-faint">{shareLabel(s.raised, sourceTotal)}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </Reveal>
           </div>
 
@@ -296,7 +330,7 @@ export default function AdminAnalyticsPage() {
             <Reveal as="section" delay={100} className="rounded-[1.6rem] border border-line bg-card p-5 sm:p-7">
               <h2 className="font-display text-xl font-semibold tracking-[-0.02em]">Latest donations</h2>
               <ul className="mt-3 list-none divide-y divide-line p-0">
-                {data.recentDonations.map((d) => (
+                {data.recentDonations.slice(0, 6).map((d) => (
                   <li key={d._id} className="flex items-center gap-3 py-3 text-sm">
                     <Avatar name={d.donorName} toneIndex={toneIndex(d.donorName, 6)} size={34} />
                     <div className="min-w-0 flex-1">

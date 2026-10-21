@@ -153,7 +153,7 @@ export default function LandingPage() {
     <>
       {/* Hero: the ledger and its campaigns, in orbit */}
       <section className="grain relative -mt-[65px] overflow-hidden bg-ink pt-[65px] text-paper" data-hero>
-        <div className="absolute inset-0 [mask-image:linear-gradient(90deg,rgba(0,0,0,0.3),rgba(0,0,0,0.3)_38%,#000_62%)]">
+        <div className="parallax absolute -inset-6 [mask-image:linear-gradient(90deg,rgba(0,0,0,0.3),rgba(0,0,0,0.3)_38%,#000_62%)]">
           <Starfield />
         </div>
         <div
@@ -161,7 +161,7 @@ export default function LandingPage() {
           style={{ background: "radial-gradient(circle, rgba(240,164,58,0.18), rgba(240,164,58,0) 65%)" }}
           aria-hidden
         />
-        <Container className="relative grid gap-x-4 gap-y-8 pb-12 pt-10 sm:pt-16 lg:grid-cols-[1.12fr_1fr] lg:grid-rows-[auto_1fr] lg:pb-16 lg:pt-20">
+        <Container className="relative grid gap-x-4 gap-y-8 pb-12 pt-10 sm:pt-16 lg:grid-cols-[1.12fr_1fr] lg:grid-rows-[auto_1fr] lg:pb-12 lg:pt-14">
           <div className="relative z-10 lg:self-end">
             <div className="reveal kicker flex items-center gap-3 text-amber" style={{ "--d": "60ms" } as CSSProperties}>
               <span className="h-px w-8 bg-amber/60" />
@@ -181,7 +181,7 @@ export default function LandingPage() {
             </h1>
           </div>
           <div className="relative -mx-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:-ml-6 lg:-mr-12 lg:self-center">
-            <OrbitHero campaigns={list} totalRaised={s?.totalRaised} />
+            <OrbitHero campaigns={list} totalRaised={s?.totalRaised} gifts={s?.recentGifts} />
           </div>
           <div className="relative z-10 lg:col-start-1 lg:row-start-2">
             <p className="reveal lg:mt-1 max-w-[34rem] text-step-1 leading-relaxed text-paper/70" style={{ "--d": "480ms" } as CSSProperties}>

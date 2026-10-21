@@ -375,13 +375,70 @@ p {
   transform: translate(-50%, 0);
 }
 .orbit-card {
-  animation: card-swap 0.7s var(--ease-out-expo) both;
+  animation: card-swap 0.9s var(--ease-out-expo) 0.9s both;
   transition:
     transform 0.5s var(--ease-out-expo),
     box-shadow 0.5s var(--ease-out-expo);
 }
 .orbit-card:hover {
   transform: translateY(-3px);
+}
+/* The card stays put; only its contents roll over to the next campaign. */
+.orbit-swap {
+  animation: swap-in 0.6s var(--ease-out-expo) both;
+}
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(3px);
+  }
+}
+.orbit-stage {
+  transition: transform 1.4s var(--ease-out-expo);
+}
+[data-hero] .parallax {
+  transform: translate3d(calc(var(--px, 0) * -18px), calc(var(--py, 0) * -14px), 0);
+  transition: transform 1.6s var(--ease-out-expo);
+}
+/* A recent gift falling into the ledger: a bright head with a fading tail. */
+.comet {
+  width: 84px;
+  height: 3px;
+  margin: -1.5px 0 0 -84px;
+  border-radius: 3px;
+  transform-origin: 100% 50%;
+  background: linear-gradient(90deg, rgba(255, 212, 138, 0), rgba(255, 212, 138, 0.35) 55%, #ffe2a8);
+  will-change: transform, opacity;
+}
+.comet::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: -2.5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff8ea;
+  box-shadow:
+    0 0 8px 3px rgba(255, 226, 168, 0.9),
+    0 0 22px 6px rgba(240, 164, 58, 0.45);
+}
+.gift-tag {
+  position: absolute;
+  left: 50%;
+  top: 11%;
+  z-index: 2;
+  opacity: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-amber);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 9px;
 }
 @keyframes card-swap {
   from {
