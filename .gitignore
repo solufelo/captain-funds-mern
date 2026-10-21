@@ -32,3 +32,11 @@ coverage/
 # Misc
 *.swp
 *.swo
+
+# Non-secret Vite mode file for the browser-only demo build
+!client/.env.demo
+
+# Playwright
+client/test-results/
+client/playwright-report/
+client/dist-demo/
