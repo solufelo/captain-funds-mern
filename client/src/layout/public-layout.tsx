@@ -1,23 +1,16 @@
-import Cookies from 'js-cookie'
-import { App } from 'antd'
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-function PublicLayout({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate()
-  const { message } = App.useApp()
-  
-  useEffect(() => {
-    const token = Cookies.get('token') || localStorage.getItem('token')
-    if (token) {
-      navigate('/')
-      message.error('You are already logged in')
-    }
-  }, [navigate, message])
-  return (
-    <div>
-        {children}
-    </div>
-  )
-}
+import { useState, type ReactNode } from "react";
+import { Navigate, useSearchParams } from "react-router-dom";
+import userStore from "../store/users-store";
+import { safeNext } from "../lib/session";
 
-export default PublicLayout
+/**
+ * For sign-in/register: someone who arrives already signed in goes straight
+ * on. Only the state at arrival counts, so the page's own post-login
+ * navigation (e.g. demo admin -> /admin) is not overridden.
+ */
+export default function PublicLayout({ children }: { children: ReactNode }) {
+  const [signedInOnArrival] = useState(() => Boolean(userStore.getState().currentUser));
+  const [params] = useSearchParams();
+  if (signedInOnArrival) return <Navigate to={safeNext(params.get("next"))} replace />;
+  return <>{children}</>;
+}

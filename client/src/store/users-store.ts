@@ -1,25 +1,18 @@
-import { create } from "zustand"
-
-interface User {
-  _id: string
-  name: string
-  email: string
-  isAdmin: boolean
-  isActive: boolean
-}
+import { create } from "zustand";
+import type { User } from "../interfaces";
 
 interface UserStore {
-  currentUser: User | null
-  setCurrentUser: (user: User | null) => void
-  clearUser: () => void
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
+  clearUser: () => void;
 }
 
 function loadStoredUser(): User | null {
   try {
-    const raw = localStorage.getItem("user")
-    return raw ? JSON.parse(raw) : null
+    const raw = localStorage.getItem("user");
+    return raw && localStorage.getItem("token") ? JSON.parse(raw) : null;
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -27,6 +20,6 @@ const userStore = create<UserStore>((set) => ({
   currentUser: loadStoredUser(),
   setCurrentUser: (user) => set({ currentUser: user }),
   clearUser: () => set({ currentUser: null }),
-}))
+}));
 
-export default userStore
+export default userStore;

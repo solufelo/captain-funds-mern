@@ -1,3 +1,22 @@
 @theme {
-  --color-primary: #1A3636;
+  --color-primary: #1a3636;
+  --color-ink: #102525;
+  --color-ink-2: #1a3636;
+  --color-ink-3: #2b4f4f;
+  --color-paper: #f7f4ee;
+  --color-paper-2: #efe9dd;
+  --color-card: #fffdf9;
+  --color-line: #e3dccd;
+  --color-muted: #5b6966;
+  --color-faint: #8a9592;
+  --color-amber: #f0a43a;
+  --color-amber-deep: #c97a12;
+  --color-amber-soft: #fbe5bf;
+  --color-sky: #a6d1ff;
+  --color-sky-soft: #e1eeff;
+  --color-moss: #2f7a57;
+  --color-rose: #b8483e;
+
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }

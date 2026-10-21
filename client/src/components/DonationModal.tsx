@@ -1,298 +1,193 @@
-import {
-  Modal,
-  Form,
-  Input,
-  Button,
-  Select,
-  Switch,
-  Row,
-  Col,
-  Space,
-  Typography,
-  Progress,
-  message,
-  Card,
-  Divider,
-  Tag,
-} from "antd";
-import {
-  HeartOutlined,
-  CreditCardOutlined,
-  LockOutlined,
-  GiftOutlined,
-} from "@ant-design/icons";
-import { useState } from "react";
-import donationService from "../services/donationService";
-import type { Campaign } from "../interfaces/index";
+import { useEffect, useState } from "react";
+import { Button, Form, Input, InputNumber, Modal, Switch } from "antd";
+import { CheckCircleFilled, LockOutlined } from "@ant-design/icons";
+import api from "../lib/api";
+import { useAppConfig } from "../lib/hooks";
+import { errorMessage } from "../lib/errors";
+import { formatDate, formatMoney } from "../lib/format";
+import userStore from "../store/users-store";
+import type { Campaign, Receipt } from "../interfaces";
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
-
-interface DonationModalProps {
-  visible: boolean;
-  onCancel: () => void;
-  campaign: Campaign | null;
-  onSuccess?: () => void;
+interface Props {
+  open: boolean;
+  campaign: Campaign;
+  onClose: () => void;
+  onDonated: () => void;
 }
 
-const DonationModal: React.FC<DonationModalProps> = ({
-  visible,
-  onCancel,
-  campaign,
-  onSuccess,
-}) => {
-  const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+const QUICK = [10, 25, 50, 100, 250];
 
-  const quickAmounts = [25, 50, 100, 250, 500, 1000];
+interface FormValues {
+  amount: number;
+  donorName?: string;
+  donorEmail?: string;
+  message?: string;
+  isAnonymous?: boolean;
+}
 
-  const handleDonate = async (values: any) => {
-    if (!campaign) return;
+export default function DonationModal({ open, campaign, onClose, onDonated }: Props) {
+  const [form] = Form.useForm<FormValues>();
+  const config = useAppConfig();
+  const { currentUser } = userStore();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const amount = Form.useWatch("amount", form);
 
+  useEffect(() => {
+    if (open) {
+      setReceipt(null);
+      setError(null);
+      form.setFieldsValue({ amount: 25, donorName: currentUser?.name || "", isAnonymous: false, message: "" });
+    }
+  }, [open, currentUser, form]);
+
+  const stripe = config.payments === "stripe";
+
+  const submit = async (values: FormValues) => {
+    setSubmitting(true);
+    setError(null);
     try {
-      setLoading(true);
-
-      // Create payment intent
-      const paymentIntent = await donationService.createPaymentIntent(
-        campaign._id!,
-        values.amount
-      );
-
-      // In a real app, you would integrate with Stripe or another payment processor here
-      // For demo purposes, we'll simulate a successful payment
-
-      // Process donation
-      await donationService.processDonation({
-        campaignId: campaign._id!,
+      const result = await api.checkout({
+        campaignId: campaign._id,
         amount: values.amount,
-        message: values.message,
-        isAnonymous: values.isAnonymous || false,
-        paymentMethod: values.paymentMethod,
-        paymentIntentId: paymentIntent.id,
+        donorName: values.donorName?.trim() || undefined,
+        donorEmail: values.donorEmail?.trim() || undefined,
+        message: values.message?.trim() || undefined,
+        isAnonymous: Boolean(values.isAnonymous),
       });
-
-      message.success("Thank you for your generous donation! 🎉");
-      form.resetFields();
-      onCancel();
-      onSuccess?.();
-    } catch (error: any) {
-      message.error(
-        error?.response?.data?.message || "Failed to process donation"
-      );
+      if (result.mode === "stripe") {
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
+      setReceipt(result.receipt);
+      onDonated();
+    } catch (e) {
+      setError(errorMessage(e, "The donation didn't go through. Please try again."));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleQuickAmount = (amount: number) => {
-    setSelectedAmount(amount);
-    form.setFieldsValue({ amount });
-  };
-
-  const progressPercent = campaign
-    ? Math.round(
-        (campaign.EventCurrentAmount / campaign.EventTargetAmount) * 100
-      )
-    : 0;
-
-  const remainingAmount = campaign
-    ? campaign.EventTargetAmount - campaign.EventCurrentAmount
-    : 0;
-
   return (
-    <Modal
-      title={null}
-      open={visible}
-      onCancel={onCancel}
-      footer={null}
-      width={700}
-      className="donation-modal"
-    >
-      {campaign && (
-        <div>
-          {/* Campaign Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <HeartOutlined className="text-red-500 text-2xl" />
-              <Title level={3} className="mb-0">
-                Support {campaign.title}
-              </Title>
+    <Modal open={open} onCancel={onClose} footer={null} width={560} destroyOnHidden title={null} centered>
+      {receipt ? (
+        <div className="py-4 text-center" data-testid="donation-success">
+          <CheckCircleFilled className="text-5xl text-moss" />
+          <h2 className="mt-4 font-display text-3xl font-semibold text-ink">Thank you.</h2>
+          <p className="mt-2 text-muted">
+            Your {formatMoney(receipt.amount)} gift to <strong className="text-ink">{receipt.campaignTitle}</strong> is on the
+            board.
+          </p>
+          <div className="mx-auto mt-6 max-w-sm rounded-2xl border border-dashed border-line bg-paper p-4 text-left text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted">Receipt</span>
+              <span className="font-mono text-xs">{receipt.id.slice(0, 18)}…</span>
             </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-muted">Date</span>
+              <span>{formatDate(receipt.createdAt)}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-muted">Payment</span>
+              <span className="font-semibold text-amber-deep">Test payment, no money moved</span>
+            </div>
+          </div>
+          <Button type="primary" size="large" shape="round" className="mt-6" onClick={onClose}>
+            Done
+          </Button>
+        </div>
+      ) : (
+        <Form form={form} layout="vertical" onFinish={submit} requiredMark={false} className="pt-2">
+          <div className="kicker text-amber-deep">Back this campaign</div>
+          <h2 className="mt-1 font-display text-2xl font-semibold leading-snug text-ink">{campaign.title}</h2>
 
-            <Card className="bg-gray-50 border-0">
-              <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <Text strong>
-                    ${campaign.EventCurrentAmount.toLocaleString()} raised
-                  </Text>
-                  <Text type="secondary">
-                    of ${campaign.EventTargetAmount.toLocaleString()} goal
-                  </Text>
-                </div>
-                <Progress
-                  percent={progressPercent}
-                  strokeColor="#52c41a"
-                  className="mb-2"
-                />
-                <div className="flex justify-between text-sm">
-                  <Text type="secondary">
-                    ${remainingAmount.toLocaleString()} remaining
-                  </Text>
-                  <Text type="secondary">
-                    {Math.max(
-                      0,
-                      Math.floor(
-                        (new Date(campaign.endDate).getTime() - Date.now()) /
-                          (1000 * 60 * 60 * 24)
-                      )
-                    )}{" "}
-                    days left
-                  </Text>
-                </div>
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                <Tag color="blue">{campaign.EventCategory}</Tag>
-                <Tag color="green">{campaign.location}</Tag>
-                <Tag color="purple">{campaign.organizer}</Tag>
-              </div>
-            </Card>
+          <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Quick amounts">
+            {QUICK.map((q) => (
+              <button
+                type="button"
+                key={q}
+                onClick={() => form.setFieldsValue({ amount: q })}
+                className={`tabular cursor-pointer rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                  amount === q ? "border-ink bg-ink text-paper" : "border-line bg-card text-ink hover:border-ink/50"
+                }`}
+              >
+                {formatMoney(q)}
+              </button>
+            ))}
           </div>
 
-          <Divider />
-
-          {/* Donation Form */}
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleDonate}
-            initialValues={{
-              isAnonymous: false,
-              paymentMethod: "credit_card",
-            }}
+          <Form.Item
+            name="amount"
+            label="Amount (CAD)"
+            className="mt-4"
+            rules={[
+              { required: true, message: "Enter an amount." },
+              { type: "integer", min: 1, max: 10000, message: "Whole dollars between $1 and $10,000." },
+            ]}
           >
-            {/* Quick Amount Selection */}
-            <Form.Item label="Select Amount">
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                {quickAmounts.map((amount) => (
-                  <Button
-                    key={amount}
-                    type={selectedAmount === amount ? "primary" : "default"}
-                    onClick={() => handleQuickAmount(amount)}
-                    className="h-12 text-lg font-medium"
-                  >
-                    ${amount}
-                  </Button>
-                ))}
-              </div>
+            <InputNumber<number> prefix="$" min={1} max={10000} precision={0} size="large" className="w-full" aria-label="Donation amount" />
+          </Form.Item>
+
+          <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+            <Form.Item name="donorName" label="Your name" rules={[{ max: 80 }]}>
+              <Input size="large" placeholder="Shown with your gift" autoComplete="name" />
             </Form.Item>
+            {!currentUser && (
+              <Form.Item name="donorEmail" label="Email for receipt (optional)" rules={[{ type: "email", message: "Enter a valid email." }]}>
+                <Input size="large" placeholder="you@example.com" autoComplete="email" />
+              </Form.Item>
+            )}
+          </div>
 
-            {/* Custom Amount */}
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="amount"
-                  label="Custom Amount"
-                  rules={[
-                    { required: true, message: "Please enter an amount" },
-                    {
-                      type: "number",
-                      min: 1,
-                      message: "Minimum donation is $1",
-                    },
-                  ]}
-                >
-                  <Input
-                    type="number"
-                    prefix="$"
-                    placeholder="Enter custom amount"
-                    min={1}
-                    step={0.01}
-                    size="large"
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      setSelectedAmount(isNaN(value) ? null : value);
-                    }}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="paymentMethod"
-                  label="Payment Method"
-                  rules={[
-                    { required: true, message: "Please select payment method" },
-                  ]}
-                >
-                  <Select placeholder="Select payment method" size="large">
-                    <Option value="credit_card">
-                      <Space>
-                        <CreditCardOutlined />
-                        Credit Card
-                      </Space>
-                    </Option>
-                    <Option value="paypal">PayPal</Option>
-                    <Option value="bank_transfer">Bank Transfer</Option>
-                    <Option value="crypto">Cryptocurrency</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+          <Form.Item name="message" label="Message (optional)" rules={[{ max: 280 }]}>
+            <Input.TextArea rows={2} maxLength={280} showCount placeholder="A note for the organiser" />
+          </Form.Item>
 
-            {/* Message */}
-            <Form.Item name="message" label="Leave a Message (Optional)">
-              <TextArea
-                rows={3}
-                placeholder="Share why this cause matters to you..."
-                maxLength={500}
-                showCount
-              />
+          <div className="flex items-center gap-3">
+            <Form.Item name="isAnonymous" valuePropName="checked" noStyle>
+              <Switch id="anon" />
             </Form.Item>
+            <label htmlFor="anon" className="text-sm text-ink">
+              Give anonymously <span className="text-muted">(your name is hidden from the public list)</span>
+            </label>
+          </div>
 
-            {/* Anonymous Option */}
-            <Form.Item name="isAnonymous" valuePropName="checked">
-              <Space>
-                <Switch />
-                <Text>Make this donation anonymous</Text>
-              </Space>
-            </Form.Item>
+          <div className="mt-5 flex gap-3 rounded-2xl bg-amber-soft/60 p-4 text-sm text-ink" data-testid="payment-mode-note">
+            <LockOutlined className="mt-0.5 text-amber-deep" />
+            {stripe ? (
+              <span>
+                You'll finish on <strong>Stripe Checkout in test mode</strong>. Use card 4242 4242 4242 4242, any future
+                date and any CVC. No real charge is made.
+              </span>
+            ) : (
+              <span>
+                <strong>Test payment.</strong> This demo records the gift without asking for a card and without charging
+                anyone. With Stripe test keys set, this step becomes Stripe Checkout.
+              </span>
+            )}
+          </div>
 
-            {/* Security Notice */}
-            <Card className="bg-blue-50 border-blue-200 mb-6">
-              <div className="flex items-center gap-2">
-                <LockOutlined className="text-blue-600" />
-                <Text className="text-blue-800">
-                  Your payment information is secure and encrypted. We never
-                  store your payment details.
-                </Text>
-              </div>
-            </Card>
+          {error && (
+            <div role="alert" className="mt-4 rounded-xl bg-rose/10 px-4 py-3 text-sm text-rose">
+              {error}
+            </div>
+          )}
 
-            {/* Action Buttons */}
-            <Form.Item>
-              <Space className="w-full justify-end">
-                <Button onClick={onCancel} size="large">
-                  Cancel
-                </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  size="large"
-                  icon={<GiftOutlined />}
-                  className="bg-green-500 border-green-500 hover:bg-green-600"
-                >
-                  Donate Now
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </div>
+          <Button
+            type="primary"
+            htmlType="submit"
+            size="large"
+            shape="round"
+            block
+            loading={submitting}
+            className="mt-6"
+            data-testid="confirm-donation"
+          >
+            {stripe ? "Continue to Stripe (test)" : `Give ${amount ? formatMoney(amount) : ""} (test payment)`}
+          </Button>
+        </Form>
       )}
     </Modal>
   );
-};
-
-export default DonationModal;
+}

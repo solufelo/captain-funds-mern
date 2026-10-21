@@ -1,25 +1,22 @@
-import React from "react";
-import { Typography } from "antd";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import userStore from "../store/users-store";
+import { Container, EmptyState } from "../components/ui";
 
-const { Title, Text } = Typography;
-
-function AdminLayout({ children }: { children: React.ReactNode }) {
+/**
+ * UI-side admin gate. The API enforces the same rule on every admin route;
+ * this only avoids showing a page that would fail to load.
+ */
+export default function AdminLayout({ children }: { children: ReactNode }) {
   const { currentUser } = userStore();
-
-  // Redirect non-admin users
   if (!currentUser?.isAdmin) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <Title level={2}>Access Denied</Title>
-        <Text type="secondary">
-          You don't have permission to access this page. Admin access required.
-        </Text>
-      </div>
+      <Container className="py-20">
+        <EmptyState title="Admins only" action={<Link to="/dashboard">Go to your dashboard</Link>}>
+          This page is for platform admins. Sign in with the demo admin account to see it.
+        </EmptyState>
+      </Container>
     );
   }
-
   return <>{children}</>;
 }
-
-export default AdminLayout;

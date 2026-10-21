@@ -1,17 +1,14 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_API_URL: string
-  readonly VITE_SOCKET_URL: string
-  readonly VITE_FIREBASE_API_KEY: string
-  readonly VITE_FIREBASE_AUTH_DOMAIN: string
-  readonly VITE_FIREBASE_PROJECT_ID: string
-  readonly VITE_FIREBASE_STORAGE_BUCKET: string
-  readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string
-  readonly VITE_FIREBASE_APP_ID: string
-  readonly VITE_FIREBASE_MEASUREMENT_ID: string
+  /** API base URL. Defaults to "/api" (proxied to the Express server in dev). */
+  readonly VITE_API_URL?: string;
+  /** Socket.IO origin. Defaults to the page origin. */
+  readonly VITE_SOCKET_URL?: string;
+  /** "true" builds the browser-only demo (no API). */
+  readonly VITE_DEMO_MODE?: string;
 }
 
 interface ImportMeta {
-  readonly env: ImportMetaEnv
+  readonly env: ImportMetaEnv;
 }

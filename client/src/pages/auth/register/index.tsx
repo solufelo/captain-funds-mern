@@ -1,73 +1,69 @@
-import { Button, Form, message } from "antd"
-import WelcomeContent from "../common/welcome-content.tsx"
-import Input from "antd/es/input/Input"
-import { Link, useNavigate } from "react-router-dom"
-import { useState } from "react"
-import { registerUser } from "../../../services/authService"
+import { useState } from "react";
+import { Button, Form, Input } from "antd";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import AuthShell from "../common/welcome-content";
+import api from "../../../lib/api";
+import { errorMessage } from "../../../lib/errors";
+import { safeNext, startSession } from "../../../lib/session";
 
 interface RegisterForm {
-  name: string
-  email: string
-  password: string
+  name: string;
+  email: string;
+  password: string;
 }
-function RegisterPage() {
-  const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
+
+export default function RegisterPage() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const onSubmit = async (values: RegisterForm) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true)
-      const response = await registerUser(values.name, values.email, values.password);
-      console.log(response)
-      message.success(response.message)
-      if (response.message === "User created successfully") {
-        navigate("/login");
-      }         
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || error?.message || "Registration failed")
+      startSession(await api.register(values.name, values.email, values.password));
+      navigate(safeNext(params.get("next")), { replace: true });
+    } catch (e) {
+      setError(errorMessage(e, "Couldn't create the account. Please try again."));
     } finally {
-      setLoading(false)
-    } 
-  }
+      setLoading(false);
+    }
+  };
 
-  const onFinishFailed = (errorInfo: any) => {
-    console.log(errorInfo.errorFields || [])
-  }
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 h-screen">
-            <div className="welcome-content bg-primary min-h-screen md:flex items-center justify-center hidden">
-              <WelcomeContent />
-            </div>
-            <div className="form-content bg-gray-100 flex items-center justify-center">
-              <Form className="flex flex-col gap-3 w-96" layout="vertical" 
-              onFinish={onSubmit}
-              onFinishFailed={onFinishFailed}>
-                <h1 className="text-2xl font-bold text-primary">
-                  Register your account</h1>
-                <hr className="" />
-                <Form.Item 
-                name="name" 
-                label="Full Name" 
-                rules={[{ required: true, message: "Please enter your full name" }]}>
-                  <Input placeholder="Enter your full name" />
-                </Form.Item>
-                <Form.Item 
-                name="email" 
-                label="Email" 
-                rules={[{ required: true, message: "Please enter your email" }]}>
-                  <Input placeholder="Enter your email" />
-                </Form.Item>
-                <Form.Item 
-                name="password" 
-                label="Password" 
-                rules={[{ required: true, message: "Please enter your password" }]}>
-                  <Input placeholder="Enter your password" />
-                </Form.Item>
-                <Button type="primary" htmlType="submit" loading={loading}>Register</Button>
-                <span className="text-sm text-gray-500">Already have an account? <Link to="/login">Login</Link></span>
-              </Form>
-            </div>
-    </div>
-  )
+    <AuthShell
+      title="Create your account"
+      subtitle={
+        <>
+          Already have one? <Link to="/login">Sign in</Link>
+        </>
+      }
+    >
+      <Form<RegisterForm> layout="vertical" requiredMark={false} onFinish={onSubmit}>
+        <Form.Item name="name" label="Full name" rules={[{ required: true, min: 2, max: 80, message: "Enter your name (2+ characters)." }]}>
+          <Input size="large" autoComplete="name" />
+        </Form.Item>
+        <Form.Item name="email" label="Email" rules={[{ required: true, type: "email", message: "Enter a valid email address." }]}>
+          <Input size="large" autoComplete="email" />
+        </Form.Item>
+        <Form.Item
+          name="password"
+          label="Password"
+          extra="At least 8 characters."
+          rules={[{ required: true, min: 8, max: 128, message: "Use at least 8 characters." }]}
+        >
+          <Input.Password size="large" autoComplete="new-password" />
+        </Form.Item>
+        {error && (
+          <div role="alert" className="mb-4 rounded-xl bg-rose/10 px-4 py-3 text-sm text-rose">
+            {error}
+          </div>
+        )}
+        <Button type="primary" htmlType="submit" size="large" shape="round" block loading={loading}>
+          Create account
+        </Button>
+      </Form>
+    </AuthShell>
+  );
 }
-
-export default RegisterPage

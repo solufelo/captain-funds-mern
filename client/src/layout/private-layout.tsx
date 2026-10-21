@@ -1,42 +1,14 @@
-import React from 'react'
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { App } from 'antd'
-import Cookies from 'js-cookie'
-import Header from './header'
-import DemoBanner from '../components/DemoBanner'
-import userStore from '../store/users-store'
+import type { ReactNode } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import userStore from "../store/users-store";
 
-function PrivateLayout({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate()
-  const { message } = App.useApp()
-  const { currentUser, setCurrentUser } = userStore()
-  useEffect(() => {
-    const token = Cookies.get('token') || localStorage.getItem('token')
-    if (token) {
-      const user = JSON.parse(Cookies.get('user') || localStorage.getItem('user') || '{}')
-      if (user && Object.keys(user).length > 0) {
-        setCurrentUser(user)
-        return
-      }
-    }
-    navigate('/login')
-    message.error('You are not logged in')
-  }, [navigate, message, setCurrentUser])
+/** Requires a signed-in user; sends visitors to /login and back afterwards. */
+export default function PrivateLayout({ children }: { children: ReactNode }) {
+  const { currentUser } = userStore();
+  const location = useLocation();
   if (!currentUser) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div>Loading...</div>
-      </div>
-    )
+    const next = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?next=${next}`} replace />;
   }
-    return (
-    <div>
-        <DemoBanner />
-        <Header />
-        {children}
-    </div>
-  )
+  return <>{children}</>;
 }
-
-export default PrivateLayout
