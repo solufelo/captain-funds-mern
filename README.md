@@ -9,8 +9,12 @@ This is a portfolio project. **All campaigns, organisers and donors are fictiona
 | ![Landing page](revamp-shots/01-landing.png) | ![Donation modal](revamp-shots/03-campaign-donate.png) |
 | **Organiser dashboard** | **Admin analytics** |
 | ![Organiser dashboard](revamp-shots/04-organiser-dashboard.png) | ![Admin analytics](revamp-shots/05-admin-analytics.png) |
+| **Gift recorded** | **Phone (390 px)** |
+| ![Donation success](revamp-shots/08-donation-success.png) | ![Phone landing](revamp-shots/11-phone-landing.png) |
 
-More in [`revamp-shots/`](revamp-shots/) (browse page and a 390 px phone view).
+More in [`revamp-shots/`](revamp-shots/): browse, campaign page, sign-in, 404 and the phone campaign page.
+
+On the landing page every live campaign is a planet orbiting the ledger total (ring = how far it is funded, size = goal), and the latest gifts replay as comets falling from their campaign into the ledger. All motion switches off under `prefers-reduced-motion`.
 
 ## What you can do
 
