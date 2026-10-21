@@ -45,7 +45,7 @@ const ROLES = [
   },
   {
     who: "Admins",
-    points: ["Review queue with approve or reject", "Feature, pause or retire campaigns", "Platform analytics by day and category", "User management with roles"],
+    points: ["Review queue with approve or reject", "Feature, edit or retire campaigns", "Platform analytics by day and category", "Activate, deactivate or remove users"],
   },
 ];
 

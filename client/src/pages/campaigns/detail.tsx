@@ -69,7 +69,7 @@ export default function CampaignDetailPage() {
   const remaining = Math.max(0, c.EventTargetAmount - c.EventCurrentAmount);
 
   return (
-    <Container className="py-8 md:py-12">
+    <Container className="pb-32 pt-8 md:pt-12 lg:pb-12">
       <Link to="/campaigns" className="inline-flex items-center gap-2 text-sm font-medium text-muted no-underline hover:text-ink">
         <ArrowLeftOutlined /> All campaigns
       </Link>
@@ -185,6 +185,24 @@ export default function CampaignDetailPage() {
             </p>
           </div>
         </aside>
+      </div>
+
+      {/* Phones: the progress panel sits below the story, so keep the CTA in reach. */}
+      <div data-mobile-cta className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper/95 px-4 pt-3 backdrop-blur-md lg:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+        <div className="mx-auto flex max-w-xl items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="tabular truncate text-sm">
+              <strong className="text-base text-ink">{formatMoney(c.EventCurrentAmount)}</strong>
+              <span className="text-muted"> of {formatMoney(c.EventTargetAmount)} · {pct}%</span>
+            </div>
+            <div className="mt-1.5">
+              <ProgressBar percent={pct} size="sm" />
+            </div>
+          </div>
+          <Button type="primary" size="large" shape="round" icon={<HeartFilled />} disabled={!canDonate} onClick={() => setOpen(true)} data-testid="donate-button-mobile">
+            Donate
+          </Button>
+        </div>
       </div>
 
       <DonationModal open={open} campaign={c} onClose={() => setOpen(false)} onDonated={reload} />
