@@ -111,6 +111,28 @@ test("unknown pages get a designed 404 with a way back", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toContainText("launchpad");
 });
 
+test("a crashed page shows a reload fallback instead of a blank screen", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("launchpad");
+  // Like a tab left open across a deploy: the next page's code can no longer be fetched.
+  await page.route("**/assets/*.js", (route) => route.abort());
+  await page.getByRole("link", { name: "Sign in", exact: true }).first().click();
+  const fallback = page.getByTestId("crash-fallback");
+  await expect(fallback).toContainText("This page lost signal.");
+
+  // Going back clears it without a reload.
+  await page.goBack();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("launchpad");
+
+  // The broken page stays broken until a reload fetches its code again.
+  await page.goForward();
+  await expect(fallback).toBeVisible();
+  await page.unroute("**/assets/*.js");
+  await fallback.getByRole("button", { name: "Reload the page" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome back");
+});
+
 test("phone: the donate bar opens a bottom sheet and nothing scrolls sideways", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();

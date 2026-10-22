@@ -6,6 +6,7 @@ import PublicLayout from "./layout/public-layout";
 import AdminLayout from "./layout/admin-layout";
 import LandingPage from "./pages/landing";
 import Loader from "./components/Loader";
+import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import NotFound from "./pages/not-found";
 import { setUnauthorizedHandler } from "./lib/session";
 
@@ -72,27 +73,29 @@ export default function App() {
   usePrefetchRoutes();
   return (
     <BrowserRouter>
-      <SessionWatcher />
-      <Routes>
-        <Route path="/" element={<SiteLayout><LandingPage /></SiteLayout>} />
-        <Route path="/campaigns" element={site(<CampaignsPage />)} />
-        <Route path="/campaigns/new" element={signedIn(<NewCampaignPage />)} />
-        <Route path="/campaigns/:id" element={site(<CampaignDetailPage />)} />
+      <RouteErrorBoundary>
+        <SessionWatcher />
+        <Routes>
+          <Route path="/" element={<SiteLayout><LandingPage /></SiteLayout>} />
+          <Route path="/campaigns" element={site(<CampaignsPage />)} />
+          <Route path="/campaigns/new" element={signedIn(<NewCampaignPage />)} />
+          <Route path="/campaigns/:id" element={site(<CampaignDetailPage />)} />
 
-        <Route path="/login" element={<PublicLayout>{themed(<LoginPage />)}</PublicLayout>} />
-        <Route path="/register" element={<PublicLayout>{themed(<RegisterPage />)}</PublicLayout>} />
+          <Route path="/login" element={<PublicLayout>{themed(<LoginPage />)}</PublicLayout>} />
+          <Route path="/register" element={<PublicLayout>{themed(<RegisterPage />)}</PublicLayout>} />
 
-        <Route path="/dashboard" element={signedIn(<OrganiserDashboard />)} />
-        <Route path="/donations" element={signedIn(<DonationsPage />)} />
-        <Route path="/profile" element={signedIn(<ProfilePage />)} />
+          <Route path="/dashboard" element={signedIn(<OrganiserDashboard />)} />
+          <Route path="/donations" element={signedIn(<DonationsPage />)} />
+          <Route path="/profile" element={signedIn(<ProfilePage />)} />
 
-        <Route path="/admin" element={admin(<AdminAnalyticsPage />)} />
-        <Route path="/admin/campaigns" element={admin(<AdminCampaignManagement />)} />
-        <Route path="/users" element={admin(<UsersPage />)} />
-        <Route path="/reports" element={<Navigate to="/admin" replace />} />
+          <Route path="/admin" element={admin(<AdminAnalyticsPage />)} />
+          <Route path="/admin/campaigns" element={admin(<AdminCampaignManagement />)} />
+          <Route path="/users" element={admin(<UsersPage />)} />
+          <Route path="/reports" element={<Navigate to="/admin" replace />} />
 
-        <Route path="*" element={<SiteLayout><NotFound /></SiteLayout>} />
-      </Routes>
+          <Route path="*" element={<SiteLayout><NotFound /></SiteLayout>} />
+        </Routes>
+      </RouteErrorBoundary>
     </BrowserRouter>
   );
 }
